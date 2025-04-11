@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import {
   Search, 
   Check, 
   X, 
-  GasStation, 
+  Fuel, 
   Leaf, 
   Coffee, 
   Wifi, 
@@ -60,7 +59,7 @@ const ChargingStations: React.FC<ChargingStationsProps> = ({
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold flex items-center">
-          <GasStation className="mr-2 h-5 w-5 text-eco" />
+          <Fuel className="mr-2 h-5 w-5 text-eco" />
           Charging Stations
         </CardTitle>
       </CardHeader>
