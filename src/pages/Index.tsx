@@ -1,17 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import Map from '@/components/Map';
 import RouteOptimizer from '@/components/RouteOptimizer';
 import EnergyPrediction from '@/components/EnergyPrediction';
 import ChargingStations from '@/components/ChargingStations';
 import Dashboard from '@/components/Dashboard';
-import useMapData, { RouteOption } from '@/hooks/useMapData';
+import Authentication from '@/components/Authentication';
+import SavedRoutes from '@/components/SavedRoutes';
+import useMapData, { RouteOption, Location } from '@/hooks/useMapData';
 import { ThemeProvider } from 'next-themes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/components/ui/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
+
+interface User {
+  email: string;
+  name: string;
+}
 
 const Index = () => {
   const { toast } = useToast();
@@ -24,10 +31,44 @@ const Index = () => {
     chargingStations,
     vehicle,
     weather,
-    isLoading
+    isLoading,
+    getRoutes
   } = useMapData();
   
   const [activeTab, setActiveTab] = useState('routes');
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Check for saved user session in localStorage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('ecoRouteUser');
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Failed to parse saved user', error);
+      }
+    }
+  }, []);
+  
+  const handleLogin = (userData: User) => {
+    setUser(userData);
+    setIsAuthenticated(true);
+    localStorage.setItem('ecoRouteUser', JSON.stringify(userData));
+  };
+  
+  const handleLogout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('ecoRouteUser');
+    toast({
+      title: "Logged Out",
+      description: "You have been successfully logged out.",
+      duration: 3000,
+    });
+  };
   
   const handleRouteSelect = (route: RouteOption) => {
     setSelectedRoute(route);
@@ -37,11 +78,32 @@ const Index = () => {
       duration: 3000,
     });
   };
+  
+  const handleSavedRouteSelect = (startLoc: Location, endLoc: Location) => {
+    // Use the getRoutes function to find routes between these locations
+    if (startLoc && endLoc) {
+      getRoutes(startLoc, endLoc);
+      toast({
+        title: "Route Loaded",
+        description: `Finding routes from ${startLoc.name} to ${endLoc.name}`,
+        duration: 3000,
+      });
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <Authentication onLogin={handleLogin} />
+        <Toaster />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+        <Navbar user={user} onLogout={handleLogout} />
         <main className="flex-1">
           <div className="container py-4 space-y-6">
             <Dashboard 
@@ -64,8 +126,9 @@ const Index = () => {
               <div className="lg:col-span-4">
                 {isMobile ? (
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid grid-cols-3 mb-4">
+                    <TabsList className="grid grid-cols-4 mb-4">
                       <TabsTrigger value="routes">Routes</TabsTrigger>
+                      <TabsTrigger value="saved">Saved</TabsTrigger>
                       <TabsTrigger value="energy">Energy</TabsTrigger>
                       <TabsTrigger value="charging">Charging</TabsTrigger>
                     </TabsList>
@@ -76,6 +139,12 @@ const Index = () => {
                         onSelectRoute={handleRouteSelect}
                         vehicle={vehicle}
                         isLoading={isLoading}
+                      />
+                    </TabsContent>
+                    <TabsContent value="saved">
+                      <SavedRoutes 
+                        onSelectRoute={handleSavedRouteSelect}
+                        locations={locations}
                       />
                     </TabsContent>
                     <TabsContent value="energy">
@@ -100,6 +169,11 @@ const Index = () => {
                       onSelectRoute={handleRouteSelect}
                       vehicle={vehicle}
                       isLoading={isLoading}
+                    />
+                    
+                    <SavedRoutes 
+                      onSelectRoute={handleSavedRouteSelect}
+                      locations={locations}
                     />
                     
                     <EnergyPrediction 

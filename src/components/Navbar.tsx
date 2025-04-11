@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Battery,
@@ -9,7 +9,12 @@ import {
   Sun, 
   Moon,
   Info,
-  Zap
+  Zap,
+  LogOut,
+  User,
+  ChevronDown,
+  IndianRupee,
+  Star
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { 
@@ -18,8 +23,26 @@ import {
   TooltipTrigger, 
   TooltipContent 
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
-const Navbar = () => {
+interface User {
+  name: string;
+  email: string;
+}
+
+interface NavbarProps {
+  user: User | null;
+  onLogout: () => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const { theme, setTheme } = useTheme();
   
   const toggleTheme = () => {
@@ -32,6 +55,9 @@ const Navbar = () => {
         <div className="flex items-center space-x-2">
           <Zap className="h-6 w-6 text-eco" />
           <h1 className="text-xl font-bold">EcoRoute AI</h1>
+          <span className="text-xs bg-eco/20 text-eco px-2 py-0.5 rounded-full hidden sm:inline-block">
+            India
+          </span>
         </div>
         
         <TooltipProvider>
@@ -65,6 +91,26 @@ const Navbar = () => {
               </TooltipTrigger>
               <TooltipContent>Energy Analytics</TooltipContent>
             </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                  <Star className="h-4 w-4" />
+                  <span>Saved</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Saved Routes</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                  <IndianRupee className="h-4 w-4" />
+                  <span>Savings</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Cost Savings</TooltipContent>
+            </Tooltip>
           </nav>
         </TooltipProvider>
         
@@ -86,13 +132,34 @@ const Navbar = () => {
             <Info className="h-5 w-5" />
           </Button>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Settings"
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
+          {user && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline-block max-w-[100px] truncate">{user.name}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="h-4 w-4 mr-2" /> Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Star className="h-4 w-4 mr-2" /> Saved Routes
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="h-4 w-4 mr-2" /> Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout}>
+                  <LogOut className="h-4 w-4 mr-2" /> Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </header>
