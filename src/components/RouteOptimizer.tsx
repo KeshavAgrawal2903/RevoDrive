@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,17 +7,28 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command";
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   RouteOption, 
   Location,
   VehicleData
 } from '@/hooks/useMapData';
+import useLocationSearch from '@/hooks/useLocationSearch';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   Map, 
   CornerDownRight, 
@@ -28,7 +39,9 @@ import {
   ArrowRight, 
   Car,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  Search,
+  MapPin
 } from 'lucide-react';
 
 interface RouteOptimizerProps {
@@ -37,6 +50,8 @@ interface RouteOptimizerProps {
   onSelectRoute: (route: RouteOption) => void;
   vehicle: VehicleData;
   isLoading: boolean;
+  onFindRoutes?: (start: Location, end: Location) => void;
+  onAddLocation?: (location: Location) => void;
 }
 
 const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
@@ -44,31 +59,55 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   selectedRoute,
   onSelectRoute,
   vehicle,
-  isLoading
+  isLoading,
+  onFindRoutes,
+  onAddLocation
 }) => {
-  const [startLocation, setStartLocation] = useState('');
-  const [endLocation, setEndLocation] = useState('');
+  const [startSearchQuery, setStartSearchQuery] = useState('');
+  const [endSearchQuery, setEndSearchQuery] = useState('');
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
   const [prioritizeRenewable, setPrioritizeRenewable] = useState(true);
   const [ecoEmphasis, setEcoEmphasis] = useState(75);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [savedLocations, setSavedLocations] = useState<Location[]>([]);
+  const [selectedStart, setSelectedStart] = useState<Location | null>(null);
+  const [selectedEnd, setSelectedEnd] = useState<Location | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { toast } = useToast();
   
-  // Simulate real-time data fetching
+  const { 
+    searchLocations: searchStartLocations, 
+    searchResults: startResults,
+    isSearching: isSearchingStart,
+    clearResults: clearStartResults
+  } = useLocationSearch();
+  
+  const { 
+    searchLocations: searchEndLocations, 
+    searchResults: endResults,
+    isSearching: isSearchingEnd,
+    clearResults: clearEndResults
+  } = useLocationSearch();
+
   useEffect(() => {
-    // Mock saved locations
-    setSavedLocations([
-      { id: 'loc1', name: 'Home', lat: 37.7749, lng: -122.4194, type: 'start' },
-      { id: 'loc2', name: 'Work', lat: 37.7833, lng: -122.4167, type: 'end' },
-      { id: 'loc3', name: 'Gym', lat: 37.7759, lng: -122.4245, type: 'waypoint' },
-      { id: 'loc4', name: 'Shopping Mall', lat: 37.7839, lng: -122.4012, type: 'waypoint' },
-      { id: 'loc5', name: 'Park', lat: 37.7694, lng: -122.4862, type: 'waypoint' },
-    ]);
-  }, []);
-  
-  const handleRouteSelect = (route: RouteOption) => {
-    onSelectRoute(route);
-  };
+    const searchTimeout = setTimeout(() => {
+      if (startSearchQuery.length >= 3) {
+        searchStartLocations(startSearchQuery, 'start', true);
+      }
+    }, 300);
+
+    return () => clearTimeout(searchTimeout);
+  }, [startSearchQuery, searchStartLocations]);
+
+  useEffect(() => {
+    const searchTimeout = setTimeout(() => {
+      if (endSearchQuery.length >= 3) {
+        searchEndLocations(endSearchQuery, 'end', true);
+      }
+    }, 300);
+
+    return () => clearTimeout(searchTimeout);
+  }, [endSearchQuery, searchEndLocations]);
   
   const getEcoScoreColor = (score: number) => {
     if (score >= 85) return 'text-energy-low';
@@ -77,9 +116,35 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   };
   
   const handleFindRoute = () => {
+    if (!selectedStart || !selectedEnd) {
+      toast({
+        title: "Missing Locations",
+        description: "Please select both starting point and destination",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Simulate real-time route finding
     setRefreshing(true);
-    console.log('Finding routes...');
+    
+    if (onAddLocation && selectedStart) {
+      onAddLocation(selectedStart);
+    }
+    
+    if (onAddLocation && selectedEnd) {
+      onAddLocation(selectedEnd);
+    }
+    
+    if (onFindRoutes) {
+      onFindRoutes(selectedStart, selectedEnd);
+      
+      toast({
+        title: "Finding Routes",
+        description: `Calculating routes from ${selectedStart.name} to ${selectedEnd.name}`,
+        duration: 3000,
+      });
+    }
     
     // Simulate API delay
     setTimeout(() => {
@@ -87,18 +152,28 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     }, 2000);
   };
 
-  const handleStartLocationChange = (value: string) => {
-    const location = savedLocations.find(loc => loc.id === value);
-    if (location) {
-      setStartLocation(location.name);
+  const handleStartSelect = (location: Location) => {
+    setSelectedStart(location);
+    setStartSearchQuery(location.name);
+    setStartOpen(false);
+    
+    if (onAddLocation) {
+      onAddLocation({...location, type: 'start'});
     }
   };
 
-  const handleEndLocationChange = (value: string) => {
-    const location = savedLocations.find(loc => loc.id === value);
-    if (location) {
-      setEndLocation(location.name);
+  const handleEndSelect = (location: Location) => {
+    setSelectedEnd(location);
+    setEndSearchQuery(location.name);
+    setEndOpen(false);
+    
+    if (onAddLocation) {
+      onAddLocation({...location, type: 'end'});
     }
+  };
+
+  const handleRouteSelect = (route: RouteOption) => {
+    onSelectRoute(route);
   };
 
   return (
@@ -115,41 +190,120 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="start" className="text-sm">Starting Point</Label>
-                <Select onValueChange={handleStartLocationChange}>
-                  <SelectTrigger id="start" className="w-full">
-                    <SelectValue placeholder="Select starting location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="current">Current Location</SelectItem>
-                    {savedLocations
-                      .filter(loc => loc.type === 'start' || loc.type === 'waypoint')
-                      .map(location => (
-                        <SelectItem key={location.id} value={location.id}>
-                          {location.name}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
+                <Popover open={startOpen} onOpenChange={setStartOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={startOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedStart ? (
+                        <span className="truncate">{selectedStart.name}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Search for a location</span>
+                      )}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search location..."
+                        className="h-9"
+                        value={startSearchQuery}
+                        onValueChange={setStartSearchQuery}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {isSearchingStart ? (
+                            <div className="flex items-center justify-center p-4">
+                              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                              Searching...
+                            </div>
+                          ) : (
+                            startSearchQuery.length < 3 ? (
+                              "Type at least 3 characters to search"
+                            ) : (
+                              "No location found"
+                            )
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {startResults.map((location) => (
+                            <CommandItem
+                              key={location.id}
+                              value={location.name}
+                              onSelect={() => handleStartSelect(location)}
+                            >
+                              <MapPin className="mr-2 h-4 w-4" />
+                              <span className="truncate">{location.name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="end" className="text-sm">Destination</Label>
-                <Select onValueChange={handleEndLocationChange}>
-                  <SelectTrigger id="end" className="w-full">
-                    <SelectValue placeholder="Select destination" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {savedLocations
-                      .filter(loc => loc.type === 'end' || loc.type === 'waypoint')
-                      .map(location => (
-                        <SelectItem key={location.id} value={location.id}>
-                          {location.name}
-                        </SelectItem>
-                      ))
-                    }
-                  </SelectContent>
-                </Select>
+                <Popover open={endOpen} onOpenChange={setEndOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={endOpen}
+                      className="w-full justify-between"
+                    >
+                      {selectedEnd ? (
+                        <span className="truncate">{selectedEnd.name}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Search for a location</span>
+                      )}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search location..."
+                        className="h-9"
+                        value={endSearchQuery}
+                        onValueChange={setEndSearchQuery}
+                      />
+                      <CommandList>
+                        <CommandEmpty>
+                          {isSearchingEnd ? (
+                            <div className="flex items-center justify-center p-4">
+                              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                              Searching...
+                            </div>
+                          ) : (
+                            endSearchQuery.length < 3 ? (
+                              "Type at least 3 characters to search"
+                            ) : (
+                              "No location found"
+                            )
+                          )}
+                        </CommandEmpty>
+                        <CommandGroup>
+                          {endResults.map((location) => (
+                            <CommandItem
+                              key={location.id}
+                              value={location.name}
+                              onSelect={() => handleEndSelect(location)}
+                            >
+                              <MapPin className="mr-2 h-4 w-4" />
+                              <span className="truncate">{location.name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
             
@@ -223,7 +377,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             <Button 
               onClick={handleFindRoute}
               className="w-full bg-eco hover:bg-eco-dark"
-              disabled={isLoading || refreshing}
+              disabled={isLoading || refreshing || !selectedStart || !selectedEnd}
             >
               {isLoading || refreshing ? (
                 <>

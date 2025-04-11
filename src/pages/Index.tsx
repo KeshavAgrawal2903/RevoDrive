@@ -34,7 +34,8 @@ const Index = () => {
     weather,
     isLoading,
     getRoutes,
-    findNearbyChargingStations
+    findNearbyChargingStations,
+    updateVehicleData
   } = useMapData();
   
   const [activeTab, setActiveTab] = useState('routes');
@@ -59,6 +60,12 @@ const Index = () => {
     setUser(userData);
     setIsAuthenticated(true);
     localStorage.setItem('ecoRouteUser', JSON.stringify(userData));
+    
+    toast({
+      title: "Welcome",
+      description: `Logged in as ${userData.name}`,
+      duration: 3000,
+    });
   };
   
   const handleLogout = () => {
@@ -101,6 +108,54 @@ const Index = () => {
     }
   };
 
+  // Function to handle dashboard button actions
+  const handleDashboardAction = (action: string) => {
+    switch (action) {
+      case 'navigate':
+        if (selectedRoute) {
+          toast({
+            title: "Navigation Started",
+            description: "Turn-by-turn navigation has been activated",
+            duration: 3000,
+          });
+          // In a real app, this would start navigation
+        } else {
+          toast({
+            title: "No Route Selected",
+            description: "Please select a route first",
+            variant: "destructive",
+            duration: 3000,
+          });
+        }
+        break;
+      case 'recharge':
+        updateVehicleData({
+          ...vehicle,
+          batteryLevel: Math.min(100, vehicle.batteryLevel + 20),
+          isCharging: true
+        });
+        toast({
+          title: "Charging Started",
+          description: "Vehicle is now charging",
+          duration: 3000,
+        });
+        break;
+      case 'findCharging':
+        if (locations.length > 0) {
+          const currentLocation = locations.find(loc => loc.type === 'current') || locations[0];
+          findNearbyChargingStations(currentLocation, 10);
+          toast({
+            title: "Searching Stations",
+            description: "Finding charging stations nearby",
+            duration: 3000,
+          });
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -120,6 +175,7 @@ const Index = () => {
               selectedRoute={selectedRoute} 
               vehicle={vehicle}
               weather={weather}
+              onAction={handleDashboardAction}
             />
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -150,6 +206,8 @@ const Index = () => {
                         onSelectRoute={handleRouteSelect}
                         vehicle={vehicle}
                         isLoading={isLoading}
+                        onFindRoutes={getRoutes}
+                        onAddLocation={addLocation}
                       />
                     </TabsContent>
                     <TabsContent value="saved">
@@ -180,6 +238,8 @@ const Index = () => {
                       onSelectRoute={handleRouteSelect}
                       vehicle={vehicle}
                       isLoading={isLoading}
+                      onFindRoutes={getRoutes}
+                      onAddLocation={addLocation}
                     />
                     
                     <SavedRoutes 
