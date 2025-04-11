@@ -25,14 +25,36 @@ interface SavedRoutesProps {
   locations: Location[];
 }
 
+// Default location to use when locations array is empty or items are missing
+const DEFAULT_LOCATION: Location = {
+  id: 'default',
+  name: 'Default Location',
+  lat: 28.6139,
+  lng: 77.2090,
+  type: 'start'
+};
+
 const SavedRoutes: React.FC<SavedRoutesProps> = ({ onSelectRoute, locations }) => {
+  // Make sure locations is always an array, even if undefined is passed
+  const safeLocations = locations || [];
+  
+  // Find a location by name or return a default
+  const findLocationOrDefault = (name: string, type: 'start' | 'end'): Location => {
+    const location = safeLocations.find(loc => loc.name === name);
+    if (location) return location;
+    
+    // If no location is found, use the first location of that type or the default
+    const typeLocation = safeLocations.find(loc => loc.type === type);
+    return typeLocation || DEFAULT_LOCATION;
+  };
+  
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([
     {
       id: '1',
       name: 'Home to Office',
       description: 'My daily commute route',
-      startLocation: locations.find(loc => loc.name === 'Home') || locations[0],
-      endLocation: locations.find(loc => loc.name === 'Work') || locations[1],
+      startLocation: findLocationOrDefault('Home', 'start'),
+      endLocation: findLocationOrDefault('Work', 'end'),
       frequency: 'daily',
       savedAt: new Date(),
       lastUsed: new Date(Date.now() - 86400000) // yesterday
@@ -41,8 +63,8 @@ const SavedRoutes: React.FC<SavedRoutesProps> = ({ onSelectRoute, locations }) =
       id: '2',
       name: 'Weekend Trip',
       description: 'Trip to mall on weekends',
-      startLocation: locations.find(loc => loc.name === 'Home') || locations[0],
-      endLocation: locations.find(loc => loc.name === 'Shopping Mall') || locations[4],
+      startLocation: findLocationOrDefault('Home', 'start'),
+      endLocation: findLocationOrDefault('Shopping Mall', 'end'),
       frequency: 'weekly',
       savedAt: new Date(Date.now() - 604800000), // a week ago
       lastUsed: new Date(Date.now() - 172800000) // two days ago
@@ -212,11 +234,11 @@ const SavedRoutes: React.FC<SavedRoutesProps> = ({ onSelectRoute, locations }) =
                 <div className="grid grid-cols-1 gap-1 text-xs">
                   <div className="flex items-center">
                     <MapPin className="h-3 w-3 mr-1 text-blue-500" />
-                    <span>From: {route.startLocation.name}</span>
+                    <span>From: {route.startLocation?.name || 'Unknown'}</span>
                   </div>
                   <div className="flex items-center">
                     <MapPin className="h-3 w-3 mr-1 text-green-500" />
-                    <span>To: {route.endLocation.name}</span>
+                    <span>To: {route.endLocation?.name || 'Unknown'}</span>
                   </div>
                   
                   <div className="flex justify-between items-center mt-1 pt-1 border-t text-[10px] text-muted-foreground">
