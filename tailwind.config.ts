@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,28 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Eco-route specific colors
+				eco: {
+					light: '#88c488',
+					DEFAULT: '#2e7d32',
+					dark: '#1a5e1a',
+				},
+				tech: {
+					light: '#64b5f6',
+					DEFAULT: '#3498db',
+					dark: '#1976d2',
+				},
+				energy: {
+					low: '#4caf50',
+					medium: '#ffc107',
+					high: '#f44336',
+				},
+				terrain: {
+					flat: '#a5d6a7',
+					hilly: '#fff59d',
+					steep: '#ffab91',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -84,11 +106,29 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'pulse-green': {
+					'0%, 100%': {
+						opacity: '1'
+					},
+					'50%': {
+						opacity: '0.7'
+					}
+				},
+				'float': {
+					'0%, 100%': {
+						transform: 'translateY(0)'
+					},
+					'50%': {
+						transform: 'translateY(-5px)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'pulse-green': 'pulse-green 2s infinite',
+				'float': 'float 3s ease-in-out infinite'
 			}
 		}
 	},
