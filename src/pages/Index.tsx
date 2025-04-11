@@ -8,7 +8,7 @@ import ChargingStations from '@/components/ChargingStations';
 import Dashboard from '@/components/Dashboard';
 import Authentication from '@/components/Authentication';
 import SavedRoutes from '@/components/SavedRoutes';
-import useMapData, { RouteOption, Location } from '@/hooks/useMapData';
+import useMapData, { Location } from '@/hooks/useMapData';
 import { ThemeProvider } from 'next-themes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/toaster";
@@ -28,11 +28,13 @@ const Index = () => {
     setSelectedRoute,
     routes,
     locations,
+    addLocation,
     chargingStations,
     vehicle,
     weather,
     isLoading,
-    getRoutes
+    getRoutes,
+    findNearbyChargingStations
   } = useMapData();
   
   const [activeTab, setActiveTab] = useState('routes');
@@ -70,7 +72,7 @@ const Index = () => {
     });
   };
   
-  const handleRouteSelect = (route: RouteOption) => {
+  const handleRouteSelect = (route: any) => {
     setSelectedRoute(route);
     toast({
       title: "Route Selected",
@@ -88,6 +90,14 @@ const Index = () => {
         description: `Finding routes from ${startLoc.name} to ${endLoc.name}`,
         duration: 3000,
       });
+    }
+  };
+  
+  const handleLocationUpdate = (location: Location) => {
+    addLocation(location);
+    // If it's a current location, find charging stations nearby
+    if (location.type === 'current') {
+      findNearbyChargingStations(location);
     }
   };
 
@@ -119,6 +129,7 @@ const Index = () => {
                   locations={locations} 
                   selectedRoute={selectedRoute}
                   chargingStations={chargingStations}
+                  onLocationUpdate={handleLocationUpdate}
                 />
               </div>
               

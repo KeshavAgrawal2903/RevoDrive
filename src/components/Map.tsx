@@ -3,28 +3,34 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Info, MapPin, Navigation, LocateFixed, ListFilter } from 'lucide-react';
+import { Info, MapPin, Navigation, LocateFixed, ListFilter, RotateCcw } from 'lucide-react';
 import { Location, RouteOption, ChargingStation } from '@/hooks/useMapData';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapProps {
   locations: Location[];
   selectedRoute: RouteOption | null;
   chargingStations: ChargingStation[];
+  onLocationUpdate?: (location: Location) => void;
 }
 
 const Map: React.FC<MapProps> = ({ 
   locations, 
   selectedRoute, 
-  chargingStations 
+  chargingStations,
+  onLocationUpdate
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
+  const map = useRef<mapboxgl.Map | null>(null);
+  const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapApiKey, setMapApiKey] = useState<string>('');
   const [showMapKeyInput, setShowMapKeyInput] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [region, setRegion] = useState<string>('india');
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -33,181 +39,304 @@ const Map: React.FC<MapProps> = ({
     if (savedApiKey) {
       setMapApiKey(savedApiKey);
       setShowMapKeyInput(false);
+      initializeMap(savedApiKey);
     }
   }, []);
+
+  // Get user's current location when map is ready
+  useEffect(() => {
+    if (map.current && !userLocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { longitude, latitude } = position.coords;
+          setUserLocation([longitude, latitude]);
+          map.current?.flyTo({
+            center: [longitude, latitude],
+            zoom: 12,
+            essential: true
+          });
+          
+          // Add user location marker
+          const userMarker = new mapboxgl.Marker({ color: '#10b981' })
+            .setLngLat([longitude, latitude])
+            .addTo(map.current);
+            
+          markersRef.current.push(userMarker);
+          
+          if (onLocationUpdate) {
+            onLocationUpdate({
+              id: 'current',
+              name: 'Current Location',
+              lat: latitude,
+              lng: longitude,
+              type: 'current'
+            });
+          }
+          
+          toast({
+            title: "Location Found",
+            description: "Your current location has been detected.",
+            duration: 3000,
+          });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          toast({
+            title: "Location Error",
+            description: "Couldn't get your location. Using Delhi as default.",
+            duration: 3000,
+          });
+          
+          // Default to Delhi, India
+          setUserLocation([77.2090, 28.6139]);
+          map.current?.flyTo({
+            center: [77.2090, 28.6139],
+            zoom: 10,
+            essential: true
+          });
+        }
+      );
+    }
+  }, [map.current, userLocation, onLocationUpdate, toast]);
+
+  // Update markers when locations or chargingStations change
+  useEffect(() => {
+    if (map.current) {
+      // Clear existing markers
+      markersRef.current.forEach(marker => marker.remove());
+      markersRef.current = [];
+      
+      // Add markers for locations
+      locations.forEach(location => {
+        let color = '#10b981'; // Default green color
+        
+        if (location.type === 'end') color = '#f43f5e';
+        else if (location.type === 'waypoint') color = '#8b5cf6';
+        else if (location.type === 'charging') color = '#3b82f6';
+        
+        const marker = new mapboxgl.Marker({ color })
+          .setLngLat([location.lng, location.lat])
+          .setPopup(new mapboxgl.Popup().setHTML(`<h3>${location.name}</h3><p>${location.type}</p>`))
+          .addTo(map.current!);
+          
+        markersRef.current.push(marker);
+      });
+      
+      // Add markers for charging stations
+      chargingStations.forEach(station => {
+        const color = station.available ? '#10b981' : '#ef4444';
+        
+        const marker = new mapboxgl.Marker({ color })
+          .setLngLat([station.lng, station.lat])
+          .setPopup(
+            new mapboxgl.Popup().setHTML(
+              `<h3>${station.name}</h3>
+               <p>Available: ${station.available ? 'Yes' : 'No'}</p>
+               <p>Power: ${station.powerKw} kW</p>
+               <p>Pricing: ${station.pricing}</p>`
+            )
+          )
+          .addTo(map.current!);
+          
+        markersRef.current.push(marker);
+      });
+      
+      // Draw route if selectedRoute exists
+      if (selectedRoute && locations.length >= 2) {
+        drawRoute();
+      }
+    }
+  }, [locations, chargingStations, selectedRoute]);
+
+  const drawRoute = async () => {
+    if (!map.current || locations.length < 2) return;
+    
+    try {
+      // Find start and end locations
+      const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
+      const end = locations.find(loc => loc.type === 'end');
+      
+      if (!start || !end) return;
+      
+      // If map already has the route layer, remove it
+      if (map.current.getLayer('route')) {
+        map.current.removeLayer('route');
+      }
+      
+      if (map.current.getSource('route')) {
+        map.current.removeSource('route');
+      }
+      
+      // Create waypoints array including start, end, and any waypoints
+      const waypoints = [
+        [start.lng, start.lat],
+        ...locations
+          .filter(loc => loc.type === 'waypoint')
+          .map(loc => [loc.lng, loc.lat] as [number, number]),
+        [end.lng, end.lat]
+      ];
+      
+      // Use Mapbox Directions API to get route
+      const query = await fetch(
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${mapApiKey}`
+      );
+      
+      if (!query.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const json = await query.json();
+      
+      if (json.code !== 'Ok') {
+        throw new Error(json.message || 'Could not calculate route');
+      }
+      
+      // Add route to map
+      map.current.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: json.routes[0].geometry
+        }
+      });
+      
+      map.current.addLayer({
+        id: 'route',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#10b981',
+          'line-width': 5,
+          'line-opacity': 0.75
+        }
+      });
+      
+      // Fit map to bounds of the route
+      const bounds = new mapboxgl.LngLatBounds();
+      json.routes[0].geometry.coordinates.forEach(coord => {
+        bounds.extend(coord as [number, number]);
+      });
+      
+      map.current.fitBounds(bounds, {
+        padding: 50,
+        maxZoom: 14
+      });
+      
+    } catch (error) {
+      console.error('Error drawing route:', error);
+      toast({
+        title: "Route Error",
+        description: "Could not calculate route. Please try again.",
+        duration: 3000,
+      });
+    }
+  };
+
+  const initializeMap = (apiKey: string) => {
+    try {
+      if (!mapContainerRef.current) return;
+      
+      mapboxgl.accessToken = apiKey;
+      
+      const newMap = new mapboxgl.Map({
+        container: mapContainerRef.current,
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [77.2090, 28.6139], // Default center on Delhi, India
+        zoom: 6,
+        projection: 'mercator'
+      });
+      
+      // Add navigation control (zoom buttons)
+      newMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      
+      // Add geolocate control
+      newMap.addControl(
+        new mapboxgl.GeolocateControl({
+          positionOptions: {
+            enableHighAccuracy: true
+          },
+          trackUserLocation: true,
+          showUserHeading: true
+        }),
+        'top-right'
+      );
+      
+      // Add scale control
+      newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
+      
+      // Set reference to map instance
+      map.current = newMap;
+      
+      // Handle map load event
+      newMap.on('load', () => {
+        toast({
+          title: "Map Loaded",
+          description: "Mapbox map has been loaded successfully.",
+          duration: 3000,
+        });
+      });
+      
+      // Handle map click event
+      newMap.on('click', (e) => {
+        console.log('Map clicked at:', e.lngLat);
+      });
+      
+      // Handle map errors
+      newMap.on('error', (e) => {
+        console.error('Map error:', e.error);
+        setMapError('An error occurred with the map. Please refresh the page.');
+      });
+      
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setMapError('Could not initialize map. Please check your API key.');
+    }
+  };
 
   const handleMapKeySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     if (mapApiKey) {
-      // Simulate API key validation
-      setTimeout(() => {
+      try {
+        // Attempt to initialize map with provided key
+        initializeMap(mapApiKey);
+        
+        // Save key to localStorage
         localStorage.setItem('mapApiKey', mapApiKey);
         setShowMapKeyInput(false);
-        setIsLoading(false);
+        
         toast({
           title: "API Key Saved",
-          description: "Your map API key has been saved successfully.",
+          description: "Your Mapbox API key has been saved successfully.",
           duration: 3000,
         });
-      }, 1000);
+      } catch (error) {
+        console.error('Error validating API key:', error);
+        toast({
+          title: "Invalid API Key",
+          description: "Please check your Mapbox API key and try again.",
+          duration: 3000,
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  const renderPlaceholderMap = () => {
-    // India-focused map rendering
-    return (
-      <div className="relative w-full h-full bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden">
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          {/* Mock Map UI elements */}
-          <div className="w-full h-full relative overflow-hidden">
-            {/* India map styling */}
-            <div className="absolute inset-0 bg-tech-light/10 dark:bg-tech-dark/20"></div>
-            
-            {/* Grid pattern */}
-            <div className="absolute inset-0" style={{ 
-              backgroundImage: 'linear-gradient(0deg, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px)',
-              backgroundSize: '20px 20px'
-            }}></div>
-            
-            {/* Mockup India outline */}
-            <div className="absolute w-[60%] h-[70%] top-[15%] left-[20%] border-2 border-dashed border-eco/40 rounded-lg">
-              {/* Stylized India outline */}
-              <div className="absolute top-[30%] left-[40%] w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-              <div className="absolute text-xs font-medium top-[35%] left-[42%]">Delhi</div>
-              
-              <div className="absolute top-[65%] left-[60%] w-3 h-3 bg-eco rounded-full animate-pulse"></div>
-              <div className="absolute text-xs font-medium top-[70%] left-[60%]">Chennai</div>
-              
-              <div className="absolute top-[60%] left-[40%] w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
-              <div className="absolute text-xs font-medium top-[65%] left-[38%]">Mumbai</div>
-              
-              <div className="absolute top-[50%] left-[55%] w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
-              <div className="absolute text-xs font-medium top-[55%] left-[53%]">Hyderabad</div>
-              
-              <div className="absolute top-[45%] left-[65%] w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></div>
-              <div className="absolute text-xs font-medium top-[50%] left-[65%]">Kolkata</div>
-              
-              <div className="absolute top-[42%] left-[33%] w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-              <div className="absolute text-xs font-medium top-[47%] left-[31%]">Ahmedabad</div>
-            </div>
-            
-            {/* Origin point */}
-            <div className="absolute w-4 h-4 bg-eco rounded-full top-[60%] left-[40%] transform -translate-y-1/2 -translate-x-1/2 border-2 border-white shadow-lg z-10"></div>
-            
-            {/* Destination point */}
-            <div className="absolute w-4 h-4 bg-tech rounded-full top-[30%] left-[40%] transform -translate-y-1/2 -translate-x-1/2 border-2 border-white shadow-lg z-10"></div>
-            
-            {/* Path visualization */}
-            <div className="absolute h-1 bg-eco-light transform -translate-y-1/2 z-[5]" style={{
-              width: '30%',
-              top: '45%',
-              left: '40%',
-              clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
-              transform: 'rotate(-60deg) translateY(40px)',
-            }}></div>
-            
-            {/* Charging stations */}
-            {chargingStations.map((station, index) => {
-              // Calculate positions based on index for demo visualization
-              const positions = [
-                { top: 35, left: 35 },
-                { top: 45, left: 45 },
-                { top: 55, left: 35 },
-                { top: 50, left: 50 }
-              ];
-              const pos = positions[index % positions.length];
-              
-              return (
-                <div 
-                  key={station.id}
-                  className={`absolute w-3 h-3 rounded-full border border-white transform -translate-x-1/2 -translate-y-1/2 ${
-                    station.available ? 'bg-energy-low' : 'bg-destructive'
-                  }`}
-                  style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
-                >
-                  <div className="absolute -top-0.5 -left-0.5 w-4 h-4 rounded-full bg-white/30 animate-ping opacity-75"></div>
-                </div>
-              );
-            })}
-          </div>
-          
-          {showMapKeyInput ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-              <Card className="w-full max-w-md p-6">
-                <h3 className="text-lg font-semibold mb-4">Enter Map API Key</h3>
-                <form onSubmit={handleMapKeySubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="apiKey" className="text-sm font-medium">
-                      Mapbox API Key
-                    </label>
-                    <Input
-                      id="apiKey"
-                      type="text"
-                      value={mapApiKey}
-                      onChange={(e) => setMapApiKey(e.target.value)}
-                      placeholder="Enter your Mapbox API key"
-                      className="w-full"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      You can get a Mapbox API key from <a href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-eco hover:underline">mapbox.com</a>
-                    </p>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full bg-eco hover:bg-eco-dark"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? 'Validating...' : 'Set API Key'}
-                  </Button>
-                  <p className="text-xs text-gray-500 mt-2">
-                    This key will be stored locally on your device.
-                  </p>
-                </form>
-              </Card>
-            </div>
-          ) : (
-            <div className="absolute bottom-4 left-4 max-w-xs">
-              <Alert className="bg-background/80 backdrop-blur-sm">
-                <Info className="h-4 w-4" />
-                <AlertDescription className="text-xs">
-                  Interactive map for Indian regions with real-time charging station updates.
-                </AlertDescription>
-              </Alert>
-            </div>
-          )}
-          
-          {/* Region selection and filters */}
-          {!showMapKeyInput && (
-            <div className="absolute top-4 right-4 flex space-x-2">
-              <div className="bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-md flex items-center text-xs">
-                <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
-                <span>India Region Active</span>
-              </div>
-            </div>
-          )}
-          
-          {/* Map controls for Indian regions */}
-          {!showMapKeyInput && (
-            <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
-              <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
-                <Navigation className="h-4 w-4 mr-1" />
-                <span className="text-xs">Navigate</span>
-              </Button>
-              <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
-                <LocateFixed className="h-4 w-4 mr-1" />
-                <span className="text-xs">Current Location</span>
-              </Button>
-              <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
-                <ListFilter className="h-4 w-4 mr-1" />
-                <span className="text-xs">Filter Stations</span>
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const resetMap = () => {
+    if (map.current) {
+      map.current.flyTo({
+        center: userLocation || [77.2090, 28.6139],
+        zoom: 10,
+        essential: true
+      });
+    }
   };
 
   return (
@@ -221,9 +350,82 @@ const Map: React.FC<MapProps> = ({
         </div>
       )}
       
-      <div ref={mapContainerRef} className="w-full h-full">
-        {renderPlaceholderMap()}
+      <div ref={mapContainerRef} className="w-full h-full rounded-xl overflow-hidden">
+        {/* Map will be rendered here */}
       </div>
+      
+      {showMapKeyInput && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+          <Card className="w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Enter Mapbox API Key</h3>
+            <form onSubmit={handleMapKeySubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="apiKey" className="text-sm font-medium">
+                  Mapbox API Key
+                </label>
+                <Input
+                  id="apiKey"
+                  type="text"
+                  value={mapApiKey}
+                  onChange={(e) => setMapApiKey(e.target.value)}
+                  placeholder="Enter your Mapbox API key"
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">
+                  You can get a Mapbox API key from <a href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-eco hover:underline">mapbox.com</a>
+                </p>
+              </div>
+              <Button
+                type="submit"
+                className="w-full bg-eco hover:bg-eco-dark"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Validating...' : 'Set API Key'}
+              </Button>
+              <p className="text-xs text-gray-500 mt-2">
+                This key will be stored locally on your device.
+              </p>
+            </form>
+          </Card>
+        </div>
+      )}
+      
+      {!showMapKeyInput && (
+        <div className="absolute bottom-4 left-4 max-w-xs">
+          <Alert className="bg-background/80 backdrop-blur-sm">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Interactive map for Indian regions with real-time data from Mapbox.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+      
+      {!showMapKeyInput && (
+        <div className="absolute top-4 right-4 flex space-x-2">
+          <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm" onClick={resetMap}>
+            <RotateCcw className="h-4 w-4 mr-1" />
+            <span className="text-xs">Reset View</span>
+          </Button>
+        </div>
+      )}
+      
+      {!showMapKeyInput && (
+        <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
+          <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
+            <Navigation className="h-4 w-4 mr-1" />
+            <span className="text-xs">Navigate</span>
+          </Button>
+          <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
+            <LocateFixed className="h-4 w-4 mr-1" />
+            <span className="text-xs">Current Location</span>
+          </Button>
+          <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
+            <ListFilter className="h-4 w-4 mr-1" />
+            <span className="text-xs">Filter Stations</span>
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
