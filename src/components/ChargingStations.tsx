@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChargingStation } from '@/hooks/useMapData';
@@ -11,9 +12,28 @@ import {
   Leaf, 
   Coffee, 
   Wifi, 
-  ShoppingBag 
+  ShoppingBag,
+  RefreshCw,
+  MapPin 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 interface ChargingStationsProps {
   chargingStations: ChargingStation[];
@@ -26,16 +46,33 @@ const ChargingStations: React.FC<ChargingStationsProps> = ({
 }) => {
   const [showAllStations, setShowAllStations] = useState(false);
   const [filter, setFilter] = useState<'all' | 'available' | 'renewable'>('available');
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedRadius, setSelectedRadius] = useState("5");
+  const [selectedLocation, setSelectedLocation] = useState("current");
+  const [displayStations, setDisplayStations] = useState<ChargingStation[]>([]);
   
-  const filteredStations = chargingStations.filter(station => {
-    if (filter === 'available') return station.available;
-    if (filter === 'renewable') return station.renewable;
-    return true;
-  });
+  // Update displayed stations when filters change
+  useEffect(() => {
+    const filteredStations = chargingStations.filter(station => {
+      if (filter === 'available') return station.available;
+      if (filter === 'renewable') return station.renewable;
+      return true;
+    });
+    
+    setDisplayStations(showAllStations ? filteredStations : filteredStations.slice(0, 2));
+  }, [chargingStations, filter, showAllStations]);
   
-  const displayStations = showAllStations 
-    ? filteredStations 
-    : filteredStations.slice(0, 2);
+  // Simulate real-time updates
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      // Simulate status changes randomly for demo purposes
+      if (!refreshing && !isLoading && Math.random() > 0.7) {
+        refreshStations();
+      }
+    }, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [refreshing, isLoading]);
   
   const getAmenityIcon = (amenity: string) => {
     switch (amenity.toLowerCase()) {
@@ -54,16 +91,81 @@ const ChargingStations: React.FC<ChargingStationsProps> = ({
   const handleFilterChange = (newFilter: 'all' | 'available' | 'renewable') => {
     setFilter(newFilter);
   };
+  
+  const refreshStations = () => {
+    console.log(`Refreshing stations near ${selectedLocation} within ${selectedRadius}km radius...`);
+    setRefreshing(true);
+    
+    // Simulate API delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
+
+  const locations = [
+    { id: "current", name: "Current Location" },
+    { id: "home", name: "Home" },
+    { id: "work", name: "Work" },
+    { id: "custom", name: "Custom Point" }
+  ];
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg font-semibold flex items-center">
-          <Fuel className="mr-2 h-5 w-5 text-eco" />
-          Charging Stations
+        <CardTitle className="text-lg font-semibold flex items-center justify-between">
+          <div className="flex items-center">
+            <Fuel className="mr-2 h-5 w-5 text-eco" />
+            Charging Stations
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0" 
+            onClick={refreshStations}
+            disabled={refreshing || isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="sr-only">Refresh</span>
+          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <div>
+              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Locations</SelectLabel>
+                    {locations.map(loc => (
+                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Select value={selectedRadius} onValueChange={setSelectedRadius}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Radius" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Search Radius (km)</SelectLabel>
+                    <SelectItem value="2">2 km</SelectItem>
+                    <SelectItem value="5">5 km</SelectItem>
+                    <SelectItem value="10">10 km</SelectItem>
+                    <SelectItem value="20">20 km</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+        
         <div className="flex items-center space-x-2">
           <Button
             size="sm"
@@ -93,11 +195,13 @@ const ChargingStations: React.FC<ChargingStationsProps> = ({
         </div>
         
         <div className="space-y-3">
-          {isLoading ? (
+          {isLoading || refreshing ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-pulse flex flex-col items-center">
                 <Zap className="h-8 w-8 text-eco animate-pulse-green" />
-                <p className="mt-2 text-sm text-muted-foreground">Finding charging stations...</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {refreshing ? 'Refreshing charging stations...' : 'Finding charging stations...'}
+                </p>
               </div>
             </div>
           ) : displayStations.length === 0 ? (
@@ -122,7 +226,36 @@ const ChargingStations: React.FC<ChargingStationsProps> = ({
               >
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h4 className="font-medium">{station.name}</h4>
+                    <div className="flex items-center">
+                      <h4 className="font-medium">{station.name}</h4>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-1">
+                            <MapPin className="h-3.5 w-3.5" />
+                            <span className="sr-only">Details</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuLabel>Station Details</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-xs flex justify-between">
+                            <span>Status:</span>
+                            <span className={station.available ? 'text-energy-low' : 'text-destructive'}>
+                              {station.available ? 'Available' : 'In Use'}
+                            </span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs flex justify-between">
+                            <span>Last Updated:</span>
+                            <span>Just now</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-xs">
+                            <Button variant="ghost" size="sm" className="w-full h-7 text-xs">
+                              Navigate Here
+                            </Button>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {station.plugTypes.join(', ')} • {station.powerKw} kW
                     </div>
@@ -184,14 +317,14 @@ const ChargingStations: React.FC<ChargingStationsProps> = ({
             ))
           )}
           
-          {filteredStations.length > 2 && (
+          {chargingStations.length > 2 && (
             <Button
               variant="ghost"
               size="sm"
               className="w-full text-muted-foreground"
               onClick={() => setShowAllStations(!showAllStations)}
             >
-              {showAllStations ? 'Show Less' : `Show ${filteredStations.length - 2} More`}
+              {showAllStations ? 'Show Less' : `Show ${chargingStations.length - 2} More`}
             </Button>
           )}
         </div>

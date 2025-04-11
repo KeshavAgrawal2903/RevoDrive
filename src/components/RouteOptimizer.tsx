@@ -1,11 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   RouteOption, 
   Location,
@@ -20,7 +27,8 @@ import {
   Timer, 
   ArrowRight, 
   Car,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 
 interface RouteOptimizerProps {
@@ -43,6 +51,20 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   const [prioritizeRenewable, setPrioritizeRenewable] = useState(true);
   const [ecoEmphasis, setEcoEmphasis] = useState(75);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [savedLocations, setSavedLocations] = useState<Location[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Simulate real-time data fetching
+  useEffect(() => {
+    // Mock saved locations
+    setSavedLocations([
+      { id: 'loc1', name: 'Home', lat: 37.7749, lng: -122.4194, type: 'start' },
+      { id: 'loc2', name: 'Work', lat: 37.7833, lng: -122.4167, type: 'end' },
+      { id: 'loc3', name: 'Gym', lat: 37.7759, lng: -122.4245, type: 'waypoint' },
+      { id: 'loc4', name: 'Shopping Mall', lat: 37.7839, lng: -122.4012, type: 'waypoint' },
+      { id: 'loc5', name: 'Park', lat: 37.7694, lng: -122.4862, type: 'waypoint' },
+    ]);
+  }, []);
   
   const handleRouteSelect = (route: RouteOption) => {
     onSelectRoute(route);
@@ -55,8 +77,28 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   };
   
   const handleFindRoute = () => {
-    // This would trigger an actual route finding logic
+    // Simulate real-time route finding
+    setRefreshing(true);
     console.log('Finding routes...');
+    
+    // Simulate API delay
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  };
+
+  const handleStartLocationChange = (value: string) => {
+    const location = savedLocations.find(loc => loc.id === value);
+    if (location) {
+      setStartLocation(location.name);
+    }
+  };
+
+  const handleEndLocationChange = (value: string) => {
+    const location = savedLocations.find(loc => loc.id === value);
+    if (location) {
+      setEndLocation(location.name);
+    }
   };
 
   return (
@@ -73,34 +115,41 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="start" className="text-sm">Starting Point</Label>
-                <div className="relative">
-                  <Input
-                    id="start"
-                    placeholder="Current Location"
-                    value={startLocation}
-                    onChange={(e) => setStartLocation(e.target.value)}
-                    className="pl-8"
-                  />
-                  <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2">
-                    <div className="w-3 h-3 rounded-full bg-eco"></div>
-                  </div>
-                </div>
+                <Select onValueChange={handleStartLocationChange}>
+                  <SelectTrigger id="start" className="w-full">
+                    <SelectValue placeholder="Select starting location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="current">Current Location</SelectItem>
+                    {savedLocations
+                      .filter(loc => loc.type === 'start' || loc.type === 'waypoint')
+                      .map(location => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="space-y-2">
                 <Label htmlFor="end" className="text-sm">Destination</Label>
-                <div className="relative">
-                  <Input
-                    id="end"
-                    placeholder="Enter Destination"
-                    value={endLocation}
-                    onChange={(e) => setEndLocation(e.target.value)}
-                    className="pl-8"
-                  />
-                  <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2">
-                    <div className="w-3 h-3 rounded-full bg-tech"></div>
-                  </div>
-                </div>
+                <Select onValueChange={handleEndLocationChange}>
+                  <SelectTrigger id="end" className="w-full">
+                    <SelectValue placeholder="Select destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedLocations
+                      .filter(loc => loc.type === 'end' || loc.type === 'waypoint')
+                      .map(location => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                        </SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
@@ -174,9 +223,14 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             <Button 
               onClick={handleFindRoute}
               className="w-full bg-eco hover:bg-eco-dark"
-              disabled={isLoading}
+              disabled={isLoading || refreshing}
             >
-              {isLoading ? 'Calculating Routes...' : 'Find Best Route'}
+              {isLoading || refreshing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  Calculating Routes...
+                </>
+              ) : 'Find Best Route'}
             </Button>
           </div>
         </CardContent>

@@ -2,8 +2,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Info, MapPin, Navigation } from 'lucide-react';
 import { Location, RouteOption, ChargingStation } from '@/hooks/useMapData';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/components/ui/use-toast';
 
 interface MapProps {
   locations: Location[];
@@ -20,6 +23,8 @@ const Map: React.FC<MapProps> = ({
   const [mapError, setMapError] = useState<string | null>(null);
   const [mapApiKey, setMapApiKey] = useState<string>('');
   const [showMapKeyInput, setShowMapKeyInput] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check for map API key in local storage
@@ -32,9 +37,20 @@ const Map: React.FC<MapProps> = ({
 
   const handleMapKeySubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    
     if (mapApiKey) {
-      localStorage.setItem('mapApiKey', mapApiKey);
-      setShowMapKeyInput(false);
+      // Simulate API key validation
+      setTimeout(() => {
+        localStorage.setItem('mapApiKey', mapApiKey);
+        setShowMapKeyInput(false);
+        setIsLoading(false);
+        toast({
+          title: "API Key Saved",
+          description: "Your map API key has been saved successfully.",
+          duration: 3000,
+        });
+      }, 1000);
     }
   };
 
@@ -69,6 +85,24 @@ const Map: React.FC<MapProps> = ({
             <div className="absolute h-1 bg-eco-light top-1/2 transform -translate-y-1/2 left-1/4 right-1/4" style={{
               clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)',
             }}></div>
+            
+            {/* Charging stations */}
+            {chargingStations.map((station, index) => {
+              // Calculate random positions for demo
+              const top = 30 + (index * 15) % 60;
+              const left = 25 + (index * 20) % 60;
+              return (
+                <div 
+                  key={station.id}
+                  className={`absolute w-3 h-3 rounded-full border border-white transform -translate-x-1/2 -translate-y-1/2 ${
+                    station.available ? 'bg-energy-low' : 'bg-destructive'
+                  }`}
+                  style={{ top: `${top}%`, left: `${left}%` }}
+                >
+                  <div className="absolute -top-0.5 -left-0.5 w-4 h-4 rounded-full bg-white/30 animate-ping opacity-75"></div>
+                </div>
+              );
+            })}
           </div>
           
           {showMapKeyInput ? (
@@ -80,21 +114,25 @@ const Map: React.FC<MapProps> = ({
                     <label htmlFor="apiKey" className="text-sm font-medium">
                       Mapbox API Key
                     </label>
-                    <input
+                    <Input
                       id="apiKey"
                       type="text"
                       value={mapApiKey}
                       onChange={(e) => setMapApiKey(e.target.value)}
                       placeholder="Enter your Mapbox API key"
-                      className="w-full px-3 py-2 border rounded-md"
+                      className="w-full"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      You can get a Mapbox API key from <a href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-eco hover:underline">mapbox.com</a>
+                    </p>
                   </div>
-                  <button
+                  <Button
                     type="submit"
-                    className="w-full px-4 py-2 bg-eco text-white rounded-md hover:bg-eco-dark transition-colors"
+                    className="w-full bg-eco hover:bg-eco-dark"
+                    disabled={isLoading}
                   >
-                    Set API Key
-                  </button>
+                    {isLoading ? 'Validating...' : 'Set API Key'}
+                  </Button>
                   <p className="text-xs text-gray-500 mt-2">
                     This key will be stored locally on your device.
                   </p>
@@ -106,9 +144,33 @@ const Map: React.FC<MapProps> = ({
               <Alert className="bg-background/80 backdrop-blur-sm">
                 <Info className="h-4 w-4" />
                 <AlertDescription className="text-xs">
-                  Interactive map would display here with real API integration. The placeholder shows the route concept.
+                  Interactive map simulation with real-time charging station updates.
                 </AlertDescription>
               </Alert>
+            </div>
+          )}
+          
+          {/* Real-time indicators */}
+          {!showMapKeyInput && (
+            <div className="absolute top-4 right-4 flex space-x-2">
+              <div className="bg-background/80 backdrop-blur-sm px-3 py-1.5 rounded-md flex items-center text-xs">
+                <div className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></div>
+                <span>Real-time updates active</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Navigation controls */}
+          {!showMapKeyInput && (
+            <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
+              <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
+                <Navigation className="h-4 w-4 mr-1" />
+                <span className="text-xs">Navigate</span>
+              </Button>
+              <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span className="text-xs">Add Stop</span>
+              </Button>
             </div>
           )}
         </div>
