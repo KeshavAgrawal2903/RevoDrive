@@ -42,7 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const ecoStatus = getEcoStatus();
   
-  // Calculate metrics
+  // Calculate metrics using formulas
   const energyEfficiency = selectedRoute 
     ? (selectedRoute.distance / selectedRoute.energyUsage).toFixed(1) 
     : '0.0';
@@ -153,6 +153,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <Button 
           variant="outline"
           className="flex items-center gap-1 bg-gray-200/50 hover:bg-gray-200"
+          onClick={() => handleActionClick('settings')}
         >
           <Settings className="h-4 w-4" />
           <span>Settings</span>

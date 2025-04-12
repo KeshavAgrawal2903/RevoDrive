@@ -149,7 +149,16 @@ const Index = () => {
             description: "Finding charging stations nearby",
             duration: 3000,
           });
+          setActiveTab('charging');
         }
+        break;
+      case 'settings':
+        toast({
+          title: "Settings",
+          description: "Vehicle and app settings panel opened",
+          duration: 3000,
+        });
+        // In a real app, this would open a settings panel
         break;
       default:
         break;
@@ -193,9 +202,8 @@ const Index = () => {
               <div className="lg:col-span-4">
                 {isMobile ? (
                   <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid grid-cols-4 mb-4">
+                    <TabsList className="grid grid-cols-3 mb-4">
                       <TabsTrigger value="routes">Routes</TabsTrigger>
-                      <TabsTrigger value="saved">Saved</TabsTrigger>
                       <TabsTrigger value="energy">Energy</TabsTrigger>
                       <TabsTrigger value="charging">Charging</TabsTrigger>
                     </TabsList>
@@ -208,12 +216,6 @@ const Index = () => {
                         isLoading={isLoading}
                         onFindRoutes={getRoutes}
                         onAddLocation={addLocation}
-                      />
-                    </TabsContent>
-                    <TabsContent value="saved">
-                      <SavedRoutes 
-                        onSelectRoute={handleSavedRouteSelect}
-                        locations={locations}
                       />
                     </TabsContent>
                     <TabsContent value="energy">
@@ -240,11 +242,6 @@ const Index = () => {
                       isLoading={isLoading}
                       onFindRoutes={getRoutes}
                       onAddLocation={addLocation}
-                    />
-                    
-                    <SavedRoutes 
-                      onSelectRoute={handleSavedRouteSelect}
-                      locations={locations}
                     />
                     
                     <EnergyPrediction 

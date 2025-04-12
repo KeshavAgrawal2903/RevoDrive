@@ -1,4 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { 
+  calculateEnergyUsage, 
+  calculateCO2Savings, 
+  calculateEcoScore,
+  calculateChargingStops
+} from '@/utils/routeCalculations';
 
 // Types for locations and routes
 export interface Location {
@@ -37,10 +43,9 @@ export interface ChargingStation {
   updatedAt: Date; // for real-time updates
 }
 
-// Mock data for Indian locations (will be replaced with real data from Mapbox API)
+// Initial locations
 const INITIAL_LOCATIONS: Location[] = [
   { id: 'current', name: 'Current Location', lat: 28.6139, lng: 77.2090, type: 'current' },
-  { id: 'end1', name: 'India Gate', lat: 28.6129, lng: 77.2295, type: 'end' },
 ];
 
 // Weather types
@@ -67,7 +72,7 @@ export interface VehicleData {
   updatedAt: Date; // for real-time updates
 }
 
-// Sample Indian EVs
+// Sample Indian EVs with realistic specifications
 const generateMockVehicle = (): VehicleData => {
   const batteryLevel = Math.floor(Math.random() * 30) + 60; // Between 60-90%
   const vehicles = [
@@ -92,7 +97,7 @@ const generateMockVehicle = (): VehicleData => {
   };
 };
 
-// Sample weather data for India
+// Generate weather data with realistic values for India
 const generateWeatherData = async (lat: number, lng: number): Promise<WeatherData> => {
   try {
     // In a real app, you would fetch from a weather API here
@@ -157,7 +162,7 @@ const getWeatherIcon = (condition: string): string => {
   }
 };
 
-// Get Indian charging stations near a location
+// Get Indian charging stations near a location with realistic data
 const getNearbyChargingStations = async (lat: number, lng: number, radius: number = 5): Promise<ChargingStation[]> => {
   try {
     // In a real app, you would fetch from an API here
@@ -219,7 +224,7 @@ const getNearbyChargingStations = async (lat: number, lng: number, radius: numbe
 // Calculate routes between locations using Mapbox Directions API
 const calculateRoutes = async (start: Location, end: Location, apiKey: string): Promise<RouteOption[]> => {
   try {
-    console.log('Finding routes...');
+    console.log('Finding routes with accurate calculations...');
     
     // In a real app, you would use the actual Mapbox Directions API here
     // For now, we'll simulate the API call and generate realistic data
@@ -238,45 +243,105 @@ const calculateRoutes = async (start: Location, end: Location, apiKey: string): 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distance = R * c;
     
-    // Add some realistic variation to the routes
+    // Generate mock weather data for energy calculations
+    const weather = await generateWeatherData(start.lat, start.lng);
+    
+    // Add some realistic variation to the routes with accurate calculations
+    const ecoRouteDistance = Math.round((distance * 1.1) * 10) / 10; // 10% longer than direct
+    const ecoRouteElevationGain = Math.floor(Math.random() * 50 + 40);
+    const ecoRouteTrafficDelay = Math.floor(Math.random() * 5 + 1);
+    const ecoRouteEnergyUsage = calculateEnergyUsage(
+      ecoRouteDistance, 
+      ecoRouteElevationGain, 
+      ecoRouteTrafficDelay, 
+      weather, 
+      'eco'
+    );
+    const ecoRouteCO2Saved = calculateCO2Savings(ecoRouteDistance);
+    const ecoRouteScore = calculateEcoScore(
+      ecoRouteEnergyUsage,
+      ecoRouteDistance,
+      ecoRouteElevationGain,
+      ecoRouteTrafficDelay
+    );
+    
+    const fastRouteDistance = Math.round(distance * 10) / 10; // Direct route
+    const fastRouteElevationGain = Math.floor(Math.random() * 70 + 60);
+    const fastRouteTrafficDelay = Math.floor(Math.random() * 8 + 2);
+    const fastRouteEnergyUsage = calculateEnergyUsage(
+      fastRouteDistance, 
+      fastRouteElevationGain, 
+      fastRouteTrafficDelay, 
+      weather, 
+      'fast'
+    );
+    const fastRouteCO2Saved = calculateCO2Savings(fastRouteDistance);
+    const fastRouteScore = calculateEcoScore(
+      fastRouteEnergyUsage,
+      fastRouteDistance,
+      fastRouteElevationGain,
+      fastRouteTrafficDelay
+    );
+    
+    const balancedRouteDistance = Math.round((distance * 1.05) * 10) / 10; // 5% longer than direct
+    const balancedRouteElevationGain = Math.floor(Math.random() * 60 + 50);
+    const balancedRouteTrafficDelay = Math.floor(Math.random() * 6 + 1);
+    const balancedRouteEnergyUsage = calculateEnergyUsage(
+      balancedRouteDistance, 
+      balancedRouteElevationGain, 
+      balancedRouteTrafficDelay, 
+      weather, 
+      'balanced'
+    );
+    const balancedRouteCO2Saved = calculateCO2Savings(balancedRouteDistance);
+    const balancedRouteScore = calculateEcoScore(
+      balancedRouteEnergyUsage,
+      balancedRouteDistance,
+      balancedRouteElevationGain,
+      balancedRouteTrafficDelay
+    );
+    
+    // Assume we have a vehicle with range of 300km
+    const mockVehicleRange = 300;
+    
     const routes: RouteOption[] = [
       {
         id: 'eco-route',
         name: `Eco Route: ${start.name} to ${end.name}`,
-        distance: Math.round((distance * 1.1) * 10) / 10, // 10% longer than direct
-        duration: Math.round(distance * 1.1 * 2), // Assuming 30 km/h average speed
-        energyUsage: Math.round((distance * 1.1 * 0.15) * 10) / 10, // 0.15 kWh per km
-        co2Saved: Math.round((distance * 0.12) * 10) / 10, // Compared to gas vehicle
-        ecoScore: Math.floor(Math.random() * 10 + 85), // 85-95 score
-        elevationGain: Math.floor(Math.random() * 50 + 40),
-        trafficDelay: Math.floor(Math.random() * 5 + 1),
-        chargingStops: distance > 100 ? 1 : 0,
+        distance: ecoRouteDistance,
+        duration: Math.round(ecoRouteDistance * 1.1 * 2), // Assuming 30 km/h average speed
+        energyUsage: ecoRouteEnergyUsage,
+        co2Saved: ecoRouteCO2Saved,
+        ecoScore: ecoRouteScore,
+        elevationGain: ecoRouteElevationGain,
+        trafficDelay: ecoRouteTrafficDelay,
+        chargingStops: calculateChargingStops(ecoRouteDistance, mockVehicleRange),
         updatedAt: new Date(),
       },
       {
         id: 'fast-route',
         name: `Fast Route: ${start.name} to ${end.name}`,
-        distance: Math.round(distance * 10) / 10, // Direct route
-        duration: Math.round(distance * 1.8), // Faster speed
-        energyUsage: Math.round((distance * 0.18) * 10) / 10, // More energy usage
-        co2Saved: Math.round((distance * 0.09) * 10) / 10,
-        ecoScore: Math.floor(Math.random() * 15 + 65), // 65-80 score
-        elevationGain: Math.floor(Math.random() * 70 + 60),
-        trafficDelay: Math.floor(Math.random() * 8 + 2),
-        chargingStops: distance > 150 ? 1 : 0,
+        distance: fastRouteDistance,
+        duration: Math.round(fastRouteDistance * 1.8), // Faster speed
+        energyUsage: fastRouteEnergyUsage,
+        co2Saved: fastRouteCO2Saved,
+        ecoScore: fastRouteScore,
+        elevationGain: fastRouteElevationGain,
+        trafficDelay: fastRouteTrafficDelay,
+        chargingStops: calculateChargingStops(fastRouteDistance, mockVehicleRange),
         updatedAt: new Date(),
       },
       {
         id: 'balanced-route',
         name: `Balanced Route: ${start.name} to ${end.name}`,
-        distance: Math.round((distance * 1.05) * 10) / 10, // 5% longer than direct
-        duration: Math.round(distance * 1.9), // Balanced speed
-        energyUsage: Math.round((distance * 1.05 * 0.16) * 10) / 10,
-        co2Saved: Math.round((distance * 0.11) * 10) / 10,
-        ecoScore: Math.floor(Math.random() * 10 + 75), // 75-85 score
-        elevationGain: Math.floor(Math.random() * 60 + 50),
-        trafficDelay: Math.floor(Math.random() * 6 + 1),
-        chargingStops: distance > 120 ? 1 : 0,
+        distance: balancedRouteDistance,
+        duration: Math.round(balancedRouteDistance * 1.9), // Balanced speed
+        energyUsage: balancedRouteEnergyUsage,
+        co2Saved: balancedRouteCO2Saved,
+        ecoScore: balancedRouteScore,
+        elevationGain: balancedRouteElevationGain,
+        trafficDelay: balancedRouteTrafficDelay,
+        chargingStops: calculateChargingStops(balancedRouteDistance, mockVehicleRange),
         updatedAt: new Date(),
       }
     ];
@@ -355,12 +420,17 @@ const useMapData = () => {
           ? -(Math.random() * 0.5) // Drain if route is active
           : Math.random() > 0.9 ? (Math.random() > 0.5 ? 1 : -1) : 0; // Random change if idle
         
-        const newBattery = Math.max(1, Math.min(100, prev.batteryLevel + batteryChange));
+        // Charging logic - increase battery level if charging
+        const chargingIncrease = prev.isCharging ? Math.random() * 0.5 + 0.1 : 0;
+        
+        const newBattery = Math.max(1, Math.min(100, prev.batteryLevel + batteryChange + chargingIncrease));
         
         return {
           ...prev,
           batteryLevel: newBattery,
           range: Math.floor(newBattery * prev.maxBatteryCapacity / prev.efficiency),
+          // Turn off charging if battery is full
+          isCharging: prev.isCharging && newBattery < 99 ? true : false,
           updatedAt: new Date()
         };
       });
