@@ -119,110 +119,163 @@ export const calculateEcoScore = (
   elevationGain: number,
   trafficDelay: number
 ): number => {
-  // Base score from energy efficiency (lower is better)
-  const efficiencyScore = Math.max(0, 100 - (energyUsage / distance) * 100);
+  // Base efficiency score (lower energy usage per km is better)
+  const efficiencyKWhPerKm = energyUsage / distance;
+  const efficiencyScore = Math.max(0, 100 - (efficiencyKWhPerKm * 250));
   
-  // Penalty for excessive elevation (more elevation = more energy)
-  const elevationFactor = Math.min(1, elevationGain / 500); // Normalize to 0-1
-  const elevationPenalty = elevationFactor * 15; // Up to 15 points penalty
+  // Elevation penalty (high elevation changes reduce score)
+  const elevationPenalty = Math.min(15, elevationGain / 100);
   
-  // Penalty for traffic (more traffic = more energy waste)
-  const trafficFactor = Math.min(1, trafficDelay / 30); // Normalize to 0-1
-  const trafficPenalty = trafficFactor * 20; // Up to 20 points penalty
+  // Traffic penalty (more traffic reduces score)
+  const trafficPenalty = Math.min(10, trafficDelay);
   
-  // Calculate final score and ensure it's within 0-100 range
-  const rawScore = efficiencyScore - elevationPenalty - trafficPenalty;
-  const finalScore = Math.min(100, Math.max(0, rawScore));
+  // Final score calculation
+  let score = efficiencyScore - elevationPenalty - trafficPenalty;
   
-  return Math.round(finalScore);
+  // Ensure score is within 0-100 range
+  score = Math.max(0, Math.min(100, score));
+  
+  return Math.round(score);
 };
 
 /**
- * Calculate arrival battery level based on current battery and route energy usage
- */
-export const calculateArrivalBattery = (
-  currentBatteryPercentage: number,
-  maxBatteryCapacity: number,
-  routeEnergyUsage: number
-): number => {
-  const currentEnergy = (currentBatteryPercentage / 100) * maxBatteryCapacity;
-  const remainingEnergy = currentEnergy - routeEnergyUsage;
-  const arrivalPercentage = (remainingEnergy / maxBatteryCapacity) * 100;
-  
-  return Math.max(0, Math.round(arrivalPercentage));
-};
-
-/**
- * Calculate number of charging stops needed based on route and vehicle
+ * Calculate number of charging stops needed based on distance and vehicle range
  */
 export const calculateChargingStops = (
-  distance: number,
-  vehicleRange: number
+  distance: number, 
+  vehicleRange: number, 
+  safetyBuffer: number = 0.2 // 20% safety buffer
 ): number => {
-  if (distance <= vehicleRange) {
+  // If distance is within vehicle range with safety buffer, no stops needed
+  const effectiveRange = vehicleRange * (1 - safetyBuffer);
+  
+  if (distance <= effectiveRange) {
     return 0;
   }
   
-  // Assume we start with full range and need to charge when below 20%
-  const effectiveRange = vehicleRange * 0.8; // 80% of range before needing a charge
-  const stops = Math.ceil(distance / effectiveRange) - 1;
-  
-  return Math.max(0, stops);
+  // Calculate number of stops needed
+  // Formula: stops = ceil(distance / effectiveRange) - 1
+  // Subtract 1 because we don't count the final destination as a charging stop
+  return Math.ceil(distance / effectiveRange) - 1;
 };
 
 /**
- * Get color for route visualization based on route type
+ * Get route color based on route type
  */
 export const getRouteColor = (routeType: string): string => {
-  // @ts-ignore
-  return CONSTANTS.ROUTE_COLORS[routeType] || '#3b82f6'; // Default to blue
+  return CONSTANTS.ROUTE_COLORS[routeType as keyof typeof CONSTANTS.ROUTE_COLORS] || '#3b82f6';
 };
 
 /**
- * Calculate estimated cost savings compared to a gasoline vehicle
+ * Calculate cost savings compared to a petrol vehicle
+ * 
+ * @param distance Distance in km
+ * @param electricityRatePerKWh Electricity rate in rupees per kWh (default: ₹8)
+ * @param petrolRatePerLiter Petrol rate in rupees per liter (default: ₹95)
+ * @param petrolEfficiency Average petrol car efficiency in km per liter (default: 12)
+ * @param evEfficiency EV efficiency in km per kWh (default: 6)
+ * @returns Savings in rupees
  */
 export const calculateCostSavings = (
   distance: number,
-  electricityRate: number = 8, // INR per kWh (average in India)
-  fuelPrice: number = 100, // INR per liter (average petrol price in India)
-  fuelEfficiency: number = 15 // km per liter (average car in India)
+  electricityRatePerKWh = 8,
+  petrolRatePerLiter = 95,
+  petrolEfficiency = 12,
+  evEfficiency = 6
 ): number => {
-  // Cost for EV (Rs per km)
-  const evCostPerKm = (CONSTANTS.BASE_EFFICIENCY * electricityRate);
+  // Cost for petrol vehicle = (distance / km per liter) * rate per liter
+  const petrolCost = (distance / petrolEfficiency) * petrolRatePerLiter;
   
-  // Cost for gasoline vehicle (Rs per km)
-  const gasCostPerKm = fuelPrice / fuelEfficiency;
+  // Cost for electric vehicle = (distance / km per kWh) * rate per kWh
+  const electricityCost = (distance / evEfficiency) * electricityRatePerKWh;
   
-  // Savings per km
-  const savingsPerKm = gasCostPerKm - evCostPerKm;
+  // Savings = petrol cost - electricity cost
+  const savings = petrolCost - electricityCost;
   
-  // Total savings
-  const totalSavings = savingsPerKm * distance;
-  
-  return Math.round(totalSavings);
+  return Math.round(savings);
 };
 
 /**
- * Calculate monthly cost savings based on average daily travel
+ * Calculate energy usage based on various factors
+ * More detailed calculation for energy prediction component
  */
-export const calculateMonthlySavings = (
-  averageDailyDistance: number = 40, // Average daily distance in km
-  electricityRate: number = 8, // INR per kWh
-  fuelPrice: number = 100 // INR per liter
-): number => {
-  const monthlySavings = calculateCostSavings(averageDailyDistance * 30, electricityRate, fuelPrice);
-  return monthlySavings;
+export const calculateDetailedEnergyUsage = (
+  distance: number,
+  elevationGain: number,
+  trafficDelay: number,
+  vehicle: VehicleData,
+  weather: WeatherData,
+  routeType: 'eco' | 'fast' | 'balanced' = 'balanced'
+) => {
+  // Base calculation
+  let energyUsage = calculateEnergyUsage(distance, elevationGain, trafficDelay, weather, routeType);
+  
+  // Calculate individual components for detailed breakdown
+  const baseEnergy = distance * vehicle.efficiency / 100; // kWh for basic movement
+  const elevationEnergy = elevationGain * CONSTANTS.ELEVATION_FACTOR; // kWh for climbing
+  const trafficEnergy = trafficDelay * CONSTANTS.TRAFFIC_IMPACT; // kWh for traffic
+  
+  // Weather factors
+  let weatherMultiplier = 1;
+  if (weather.condition.toLowerCase().includes('rain')) {
+    weatherMultiplier = CONSTANTS.RAIN_IMPACT;
+  } else if (weather.condition.toLowerCase().includes('snow')) {
+    weatherMultiplier = CONSTANTS.SNOW_IMPACT;
+  }
+  
+  // Wind impact
+  let windMultiplier = 1;
+  if (weather.windSpeed > 20) {
+    windMultiplier = CONSTANTS.HIGH_WIND_IMPACT;
+  } else if (weather.windSpeed > 10) {
+    windMultiplier = CONSTANTS.MEDIUM_WIND_IMPACT;
+  }
+  
+  // Temperature impact
+  let tempMultiplier = 1;
+  if (weather.temperature > 35) {
+    tempMultiplier = CONSTANTS.HIGH_TEMP_IMPACT;
+  } else if (weather.temperature < 10) {
+    tempMultiplier = CONSTANTS.LOW_TEMP_IMPACT;
+  }
+  
+  const weatherEnergy = baseEnergy * (Math.max(weatherMultiplier, windMultiplier, tempMultiplier) - 1);
+  
+  // Climate control energy (heating/cooling)
+  const climateControlEnergy = (weather.temperature > 30 || weather.temperature < 15) 
+    ? distance * 0.01 : 0;
+  
+  // Return detailed breakdown
+  return {
+    total: energyUsage,
+    base: Math.round(baseEnergy * 10) / 10,
+    elevation: Math.round(elevationEnergy * 10) / 10,
+    traffic: Math.round(trafficEnergy * 10) / 10,
+    weather: Math.round(weatherEnergy * 10) / 10,
+    climateControl: Math.round(climateControlEnergy * 10) / 10,
+  };
 };
 
 /**
- * Calculate lifetime savings of an EV compared to gasoline vehicle
+ * Calculate range remaining after a trip
  */
-export const calculateLifetimeSavings = (
-  yearlyDistance: number = 15000, // km per year
-  vehicleLifetime: number = 8, // years
-  electricityRate: number = 8, // INR per kWh
-  fuelPrice: number = 100 // INR per liter
+export const calculateRangeAfterTrip = (
+  currentRange: number,
+  energyUsage: number,
+  batteryCapacity: number,
+  efficiency: number
 ): number => {
-  const lifetimeSavings = calculateCostSavings(yearlyDistance * vehicleLifetime, electricityRate, fuelPrice);
-  return lifetimeSavings;
+  // Convert current range to battery percentage
+  const currentBatteryPercentage = (currentRange * efficiency) / batteryCapacity;
+  
+  // Energy used as a percentage of total capacity
+  const energyPercentageUsed = energyUsage / batteryCapacity;
+  
+  // Remaining battery percentage
+  const remainingPercentage = Math.max(0, currentBatteryPercentage - energyPercentageUsed);
+  
+  // Convert back to range
+  const remainingRange = (remainingPercentage * batteryCapacity) / efficiency;
+  
+  return Math.round(remainingRange);
 };

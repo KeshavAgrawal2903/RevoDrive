@@ -28,7 +28,7 @@ import {
   VehicleData
 } from '@/hooks/useMapData';
 import useLocationSearch from '@/hooks/useLocationSearch';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Map, 
   CornerDownRight, 
@@ -41,7 +41,9 @@ import {
   ChevronRight,
   RefreshCw,
   Search,
-  MapPin
+  MapPin,
+  Navigation,
+  LocateFixed
 } from 'lucide-react';
 
 interface RouteOptimizerProps {
@@ -52,6 +54,7 @@ interface RouteOptimizerProps {
   isLoading: boolean;
   onFindRoutes?: (start: Location, end: Location) => void;
   onAddLocation?: (location: Location) => void;
+  useCurrentLocation?: boolean;
 }
 
 const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
@@ -61,7 +64,8 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   vehicle,
   isLoading,
   onFindRoutes,
-  onAddLocation
+  onAddLocation,
+  useCurrentLocation = true
 }) => {
   const [startSearchQuery, setStartSearchQuery] = useState('');
   const [endSearchQuery, setEndSearchQuery] = useState('');
@@ -73,6 +77,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   const [selectedStart, setSelectedStart] = useState<Location | null>(null);
   const [selectedEnd, setSelectedEnd] = useState<Location | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const { toast } = useToast();
   
   const { 
@@ -89,15 +94,66 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     clearResults: clearEndResults
   } = useLocationSearch();
 
+  // Get user's current location on mount
+  useEffect(() => {
+    if (useCurrentLocation && !currentLocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const newLocation: Location = {
+            id: 'current',
+            name: 'Current Location',
+            lat: latitude,
+            lng: longitude,
+            type: 'current'
+          };
+          
+          setCurrentLocation(newLocation);
+          setSelectedStart(newLocation);
+          
+          if (onAddLocation) {
+            onAddLocation(newLocation);
+          }
+          
+          toast({
+            title: "Current Location Set",
+            description: "Using your current location as starting point",
+            duration: 3000,
+          });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          toast({
+            title: "Location Error",
+            description: "Couldn't get your location. Please enter manually.",
+            duration: 3000,
+            variant: "destructive"
+          });
+        }
+      );
+    }
+  }, [useCurrentLocation, onAddLocation, toast, currentLocation]);
+
+  // Update start input when useCurrentLocation changes
+  useEffect(() => {
+    if (useCurrentLocation && currentLocation) {
+      setSelectedStart(currentLocation);
+      setStartSearchQuery("Current Location");
+    } else if (!useCurrentLocation && selectedStart?.type === 'current') {
+      setSelectedStart(null);
+      setStartSearchQuery("");
+    }
+  }, [useCurrentLocation, currentLocation, selectedStart]);
+
   useEffect(() => {
     const searchTimeout = setTimeout(() => {
-      if (startSearchQuery.length >= 3) {
+      if (startSearchQuery.length >= 3 && !useCurrentLocation) {
         searchStartLocations(startSearchQuery, 'start', true);
       }
     }, 300);
 
     return () => clearTimeout(searchTimeout);
-  }, [startSearchQuery, searchStartLocations]);
+  }, [startSearchQuery, searchStartLocations, useCurrentLocation]);
 
   useEffect(() => {
     const searchTimeout = setTimeout(() => {
@@ -176,6 +232,16 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     onSelectRoute(route);
   };
 
+  // Navigate function for route options
+  const handleNavigate = (route: RouteOption) => {
+    onSelectRoute(route);
+    toast({
+      title: "Navigation Started",
+      description: `Navigating via ${route.name}`,
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -190,61 +256,68 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="start" className="text-sm">Starting Point</Label>
-                <Popover open={startOpen} onOpenChange={setStartOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={startOpen}
-                      className="w-full justify-between"
-                    >
-                      {selectedStart ? (
-                        <span className="truncate">{selectedStart.name}</span>
-                      ) : (
-                        <span className="text-muted-foreground">Search for a location</span>
-                      )}
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0">
-                    <Command>
-                      <CommandInput
-                        placeholder="Search location..."
-                        className="h-9"
-                        value={startSearchQuery}
-                        onValueChange={setStartSearchQuery}
-                      />
-                      <CommandList>
-                        <CommandEmpty>
-                          {isSearchingStart ? (
-                            <div className="flex items-center justify-center p-4">
-                              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                              Searching...
-                            </div>
-                          ) : (
-                            startSearchQuery.length < 3 ? (
-                              "Type at least 3 characters to search"
+                {useCurrentLocation ? (
+                  <div className="flex items-center space-x-2 border rounded-md p-2 bg-muted/50">
+                    <LocateFixed className="h-4 w-4 text-eco" />
+                    <span className="text-sm">Using Current Location</span>
+                  </div>
+                ) : (
+                  <Popover open={startOpen} onOpenChange={setStartOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={startOpen}
+                        className="w-full justify-between"
+                      >
+                        {selectedStart ? (
+                          <span className="truncate">{selectedStart.name}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Search for a location</span>
+                        )}
+                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search location..."
+                          className="h-9"
+                          value={startSearchQuery}
+                          onValueChange={setStartSearchQuery}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            {isSearchingStart ? (
+                              <div className="flex items-center justify-center p-4">
+                                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                                Searching...
+                              </div>
                             ) : (
-                              "No location found"
-                            )
-                          )}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {startResults.map((location) => (
-                            <CommandItem
-                              key={location.id}
-                              value={location.name}
-                              onSelect={() => handleStartSelect(location)}
-                            >
-                              <MapPin className="mr-2 h-4 w-4" />
-                              <span className="truncate">{location.name}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                              startSearchQuery.length < 3 ? (
+                                "Type at least 3 characters to search"
+                              ) : (
+                                "No location found"
+                              )
+                            )}
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {startResults.map((location) => (
+                              <CommandItem
+                                key={location.id}
+                                value={location.name}
+                                onSelect={() => handleStartSelect(location)}
+                              >
+                                <MapPin className="mr-2 h-4 w-4" />
+                                <span className="truncate">{location.name}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
               
               <div className="space-y-2">
@@ -377,7 +450,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             <Button 
               onClick={handleFindRoute}
               className="w-full bg-eco hover:bg-eco-dark"
-              disabled={isLoading || refreshing || !selectedStart || !selectedEnd}
+              disabled={isLoading || refreshing || !selectedEnd || (useCurrentLocation ? !currentLocation : !selectedStart)}
             >
               {isLoading || refreshing ? (
                 <>
@@ -393,9 +466,14 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
       {routes.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold flex items-center">
-              <CornerDownRight className="mr-2 h-5 w-5 text-eco" />
-              Route Options
+            <CardTitle className="text-lg font-semibold flex items-center justify-between">
+              <div className="flex items-center">
+                <CornerDownRight className="mr-2 h-5 w-5 text-eco" />
+                Route Options
+              </div>
+              <span className="text-xs bg-eco/10 text-eco px-2 py-0.5 rounded-md">
+                {routes.length} routes found
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -412,12 +490,13 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
                 >
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-medium">{route.name}</h4>
-                    <div className={`eco-score ${getEcoScoreColor(route.ecoScore)}`}>
-                      {route.ecoScore}
+                    <div className={`eco-score flex items-center gap-1 ${getEcoScoreColor(route.ecoScore)}`}>
+                      <span className="text-xs bg-muted px-1 rounded">Score</span>
+                      <span className="font-bold">{route.ecoScore}</span>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div className="grid grid-cols-3 gap-2 text-sm mb-2">
                     <div className="flex items-center space-x-1">
                       <Zap className="h-3.5 w-3.5 text-energy-medium" />
                       <span>{route.energyUsage} kWh</span>
@@ -452,6 +531,26 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
                       </div>
                     </div>
                   )}
+                  
+                  {/* Add navigate button for each route */}
+                  <div className="mt-2 pt-2 border-t flex">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      className={`${
+                        route.id === 'eco-route' ? 'bg-eco/10 hover:bg-eco/20 text-eco' :
+                        route.id === 'fast-route' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500' :
+                        'bg-purple-500/10 hover:bg-purple-500/20 text-purple-500'
+                      } ml-auto`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigate(route);
+                      }}
+                    >
+                      <Navigation className="h-3.5 w-3.5 mr-1" />
+                      Navigate
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

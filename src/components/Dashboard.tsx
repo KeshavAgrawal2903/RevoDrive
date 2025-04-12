@@ -148,6 +148,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             variant="outline" 
             className={`flex items-center gap-1 ${action.color}`}
             onClick={() => handleActionClick(action.name)}
+            disabled={action.name === 'navigate' && !selectedRoute}
           >
             {action.icon}
             <span>{action.label}</span>

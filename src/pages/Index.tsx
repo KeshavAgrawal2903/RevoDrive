@@ -7,7 +7,6 @@ import EnergyPrediction from '@/components/EnergyPrediction';
 import ChargingStations from '@/components/ChargingStations';
 import Dashboard from '@/components/Dashboard';
 import Authentication from '@/components/Authentication';
-import SavedRoutes from '@/components/SavedRoutes';
 import useMapData, { Location } from '@/hooks/useMapData';
 import { ThemeProvider } from 'next-themes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,7 +14,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart2, IndianRupee, Star, Battery } from 'lucide-react';
+import { 
+  BarChart2, 
+  IndianRupee, 
+  Star, 
+  Battery, 
+  AlertTriangle,
+  Navigation,
+  Map as MapIcon
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface User {
   email: string;
@@ -44,6 +52,7 @@ const Index = () => {
   const [activePage, setActivePage] = useState('main');
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(true);
   
   // Check for saved user session in localStorage
   useEffect(() => {
@@ -349,6 +358,122 @@ const Index = () => {
       </Card>
     </div>
   );
+  
+  // Render saved routes page
+  const renderSavedRoutes = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Star className="mr-2 h-5 w-5 text-orange-400" />
+            Saved Routes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Sample saved routes */}
+              <Card className="bg-muted/30">
+                <CardContent className="p-4 space-y-2">
+                  <h4 className="font-medium">Delhi to Jaipur</h4>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>270 km</span>
+                    <span>Eco Score: 83</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2 bg-eco hover:bg-eco/80"
+                    onClick={() => {
+                      toast({
+                        title: "Route Loaded",
+                        description: "Delhi to Jaipur route has been loaded",
+                        duration: 3000,
+                      });
+                    }}
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    Load Route
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-muted/30">
+                <CardContent className="p-4 space-y-2">
+                  <h4 className="font-medium">Mumbai to Pune</h4>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>150 km</span>
+                    <span>Eco Score: 88</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2 bg-eco hover:bg-eco/80"
+                    onClick={() => {
+                      toast({
+                        title: "Route Loaded",
+                        description: "Mumbai to Pune route has been loaded",
+                        duration: 3000,
+                      });
+                    }}
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    Load Route
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-muted/30">
+                <CardContent className="p-4 space-y-2">
+                  <h4 className="font-medium">Bangalore to Mysore</h4>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>145 km</span>
+                    <span>Eco Score: 91</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2 bg-eco hover:bg-eco/80"
+                    onClick={() => {
+                      toast({
+                        title: "Route Loaded",
+                        description: "Bangalore to Mysore route has been loaded",
+                        duration: 3000,
+                      });
+                    }}
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    Load Route
+                  </Button>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-muted/30">
+                <CardContent className="p-4 space-y-2">
+                  <h4 className="font-medium">Chennai to Pondicherry</h4>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>170 km</span>
+                    <span>Eco Score: 85</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2 bg-eco hover:bg-eco/80"
+                    onClick={() => {
+                      toast({
+                        title: "Route Loaded",
+                        description: "Chennai to Pondicherry route has been loaded",
+                        duration: 3000,
+                      });
+                    }}
+                  >
+                    <Navigation className="h-4 w-4 mr-2" />
+                    Load Route
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
@@ -371,6 +496,28 @@ const Index = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Map Section */}
                 <div className="lg:col-span-8">
+                  <div className="mb-4 flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="use-current"
+                        checked={useCurrentLocation}
+                        onChange={() => setUseCurrentLocation(!useCurrentLocation)}
+                        className="rounded text-eco focus:ring-eco"
+                      />
+                      <label htmlFor="use-current" className="text-sm font-medium">
+                        Use current location as starting point
+                      </label>
+                    </div>
+                    
+                    {vehicle.batteryLevel < 30 && (
+                      <div className="flex items-center text-sm text-energy-high">
+                        <AlertTriangle className="h-4 w-4 mr-1" />
+                        <span>Low battery! Consider charging soon.</span>
+                      </div>
+                    )}
+                  </div>
+                  
                   <Map 
                     locations={locations} 
                     selectedRoute={selectedRoute}
@@ -378,6 +525,7 @@ const Index = () => {
                     chargingStations={chargingStations}
                     onLocationUpdate={handleLocationUpdate}
                     onRouteClick={handleRouteSelect}
+                    useCurrentLocation={useCurrentLocation}
                   />
                 </div>
                 
@@ -399,6 +547,7 @@ const Index = () => {
                           isLoading={isLoading}
                           onFindRoutes={getRoutes}
                           onAddLocation={addLocation}
+                          useCurrentLocation={useCurrentLocation}
                         />
                       </TabsContent>
                       <TabsContent value="energy">
@@ -425,6 +574,7 @@ const Index = () => {
                         isLoading={isLoading}
                         onFindRoutes={getRoutes}
                         onAddLocation={addLocation}
+                        useCurrentLocation={useCurrentLocation}
                       />
                       
                       <EnergyPrediction 
@@ -444,31 +594,7 @@ const Index = () => {
             )}
             
             {activePage === 'analytics' && renderAnalytics()}
-            
-            {activePage === 'saved' && (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Star className="mr-2 h-5 w-5 text-orange-400" />
-                      Saved Routes
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {/* This will be replaced with actual saved routes */}
-                      <p className="text-sm text-muted-foreground">
-                        Save your frequently used routes for quick access. Your saved routes will appear here.
-                      </p>
-                      <div className="h-40 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                        <p className="text-muted-foreground">No saved routes yet</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-            
+            {activePage === 'saved' && renderSavedRoutes()}
             {activePage === 'savings' && renderSavings()}
           </div>
         </main>

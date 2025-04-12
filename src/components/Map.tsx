@@ -3,7 +3,18 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Info, MapPin, Navigation, LocateFixed, ListFilter, RotateCcw, Layers, ChevronsUpDown } from 'lucide-react';
+import { 
+  Info, 
+  MapPin, 
+  Navigation, 
+  LocateFixed, 
+  ListFilter, 
+  RotateCcw, 
+  Layers, 
+  ChevronsUpDown,
+  CheckCircle2,
+  Route
+} from 'lucide-react';
 import { Location, RouteOption, ChargingStation } from '@/hooks/useMapData';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -18,7 +29,8 @@ interface MapProps {
   allRoutes: RouteOption[];
   chargingStations: ChargingStation[];
   onLocationUpdate?: (location: Location) => void;
-  onRouteClick?: (routeId: string) => void;
+  onRouteClick?: (route: RouteOption) => void;
+  useCurrentLocation?: boolean;
 }
 
 const Map: React.FC<MapProps> = ({ 
@@ -27,7 +39,8 @@ const Map: React.FC<MapProps> = ({
   allRoutes = [],
   chargingStations,
   onLocationUpdate,
-  onRouteClick
+  onRouteClick,
+  useCurrentLocation = true
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -39,6 +52,7 @@ const Map: React.FC<MapProps> = ({
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [showCompareRoutes, setShowCompareRoutes] = useState<boolean>(false);
   const [showStations, setShowStations] = useState<boolean>(true);
+  const [activeNavigation, setActiveNavigation] = useState<boolean>(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -53,7 +67,7 @@ const Map: React.FC<MapProps> = ({
 
   // Get user's current location when map is ready
   useEffect(() => {
-    if (map.current && !userLocation) {
+    if (map.current && !userLocation && useCurrentLocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { longitude, latitude } = position.coords;
@@ -105,7 +119,7 @@ const Map: React.FC<MapProps> = ({
         }
       );
     }
-  }, [map.current, userLocation, onLocationUpdate, toast]);
+  }, [map.current, userLocation, onLocationUpdate, toast, useCurrentLocation]);
 
   // Update markers when locations or chargingStations change
   useEffect(() => {
@@ -139,10 +153,17 @@ const Map: React.FC<MapProps> = ({
             .setLngLat([station.lng, station.lat])
             .setPopup(
               new mapboxgl.Popup().setHTML(
-                `<h3>${station.name}</h3>
-                <p>Available: ${station.available ? 'Yes' : 'No'}</p>
-                <p>Power: ${station.powerKw} kW</p>
-                <p>Pricing: ${station.pricing}</p>`
+                `<div style="padding: 8px;">
+                  <h3 style="font-weight: bold; margin-bottom: 5px;">${station.name}</h3>
+                  <p style="margin: 2px 0;"><strong>Available:</strong> ${station.available ? 'Yes' : 'No'}</p>
+                  <p style="margin: 2px 0;"><strong>Power:</strong> ${station.powerKw} kW</p>
+                  <p style="margin: 2px 0;"><strong>Pricing:</strong> ${station.pricing}</p>
+                  <p style="margin: 2px 0;"><strong>Renewable:</strong> ${station.renewable ? 'Yes' : 'No'}</p>
+                  ${station.amenities.length > 0 ? 
+                    `<p style="margin: 2px 0;"><strong>Amenities:</strong> ${station.amenities.join(', ')}</p>` 
+                    : ''
+                  }
+                </div>`
               )
             )
             .addTo(map.current!);
@@ -172,6 +193,19 @@ const Map: React.FC<MapProps> = ({
         return '#8b5cf6'; // purple for balanced route
       default:
         return '#3b82f6'; // blue for any other route
+    }
+  };
+
+  const getRouteLabel = (routeType: string): string => {
+    switch (routeType) {
+      case 'eco-route':
+        return 'Eco Route';
+      case 'fast-route':
+        return 'Fast Route';
+      case 'balanced-route':
+        return 'Balanced Route';
+      default:
+        return 'Custom Route';
     }
   };
 
@@ -234,7 +268,10 @@ const Map: React.FC<MapProps> = ({
           type: 'geojson',
           data: {
             type: 'Feature',
-            properties: {},
+            properties: {
+              routeId: route.id,
+              routeName: getRouteLabel(route.id)
+            },
             geometry: routeGeometry
           }
         });
@@ -249,15 +286,21 @@ const Map: React.FC<MapProps> = ({
           },
           paint: {
             'line-color': color,
-            'line-width': i === 0 ? 5 : 3, // Make the first route thicker
-            'line-opacity': i === 0 ? 0.8 : 0.6,
-            'line-dasharray': i === 0 ? [1, 0] : [2, 1] // Make other routes dashed
+            'line-width': route.id === selectedRoute?.id ? 6 : 4, // Make selected route thicker
+            'line-opacity': route.id === selectedRoute?.id ? 0.9 : 0.7,
+            'line-dasharray': i === 1 ? [2, 1] : i === 2 ? [1, 1] : [1, 0] // Different dash patterns
           }
         });
         
         // Add click event
-        map.current.on('click', `route-${i}`, () => {
-          if (onRouteClick) onRouteClick(route.id);
+        map.current.on('click', `route-${i}`, (e) => {
+          if (e.features && e.features[0].properties && onRouteClick) {
+            const clickedRouteId = e.features[0].properties.routeId;
+            const clickedRoute = routes.find(r => r.id === clickedRouteId);
+            if (clickedRoute) {
+              onRouteClick(clickedRoute);
+            }
+          }
         });
         
         // Add hover effect
@@ -322,26 +365,46 @@ const Map: React.FC<MapProps> = ({
     // Create new legend
     const legend = document.createElement('div');
     legend.id = 'route-legend';
-    legend.className = 'absolute bottom-4 left-4 bg-white p-2 rounded shadow-md z-10';
+    legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200';
     
     const title = document.createElement('div');
-    title.textContent = 'Route Types';
-    title.className = 'font-semibold text-sm mb-1';
+    title.textContent = 'Route Comparison';
+    title.className = 'font-semibold text-sm mb-2 flex items-center';
+    
+    // Add icon to title
+    const titleIcon = document.createElement('span');
+    titleIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M3 17l2 2 4-4"></path><path d="M3 7l2 2 4-4"></path><path d="M13 17l6-6"></path><path d="M13 7l6-6"></path></svg>';
+    title.prepend(titleIcon);
+    
     legend.appendChild(title);
     
     routes.forEach(route => {
       const item = document.createElement('div');
-      item.className = 'flex items-center text-xs mb-1';
+      item.className = 'flex items-center text-xs mb-2';
       
       const color = document.createElement('div');
-      color.className = 'w-3 h-3 rounded-full mr-1';
+      color.className = 'w-4 h-2 rounded-full mr-2';
       color.style.backgroundColor = getRouteColor(route.id);
       
       const label = document.createElement('span');
-      label.textContent = route.id.replace('-route', '').replace('-', ' ');
+      label.textContent = getRouteLabel(route.id);
+      
+      const info = document.createElement('div');
+      info.className = 'text-gray-500 ml-auto text-xs flex items-center';
+      
+      const distance = document.createElement('span');
+      distance.textContent = `${route.distance} km`;
+      distance.className = 'mr-2';
+      
+      const time = document.createElement('span');
+      time.textContent = `${route.duration} min`;
+      
+      info.appendChild(distance);
+      info.appendChild(time);
       
       item.appendChild(color);
       item.appendChild(label);
+      item.appendChild(info);
       legend.appendChild(item);
     });
     
@@ -400,7 +463,10 @@ const Map: React.FC<MapProps> = ({
         type: 'geojson',
         data: {
           type: 'Feature',
-          properties: {},
+          properties: {
+            routeId: route.id,
+            routeName: getRouteLabel(route.id)
+          },
           geometry: json.routes[0].geometry
         }
       });
@@ -415,10 +481,15 @@ const Map: React.FC<MapProps> = ({
         },
         paint: {
           'line-color': getRouteColor(route.id),
-          'line-width': 5,
-          'line-opacity': 0.75
+          'line-width': 6,
+          'line-opacity': 0.8
         }
       });
+      
+      // Add route markers for additional information like distance and time
+      if (activeNavigation) {
+        addRouteMarkers(json.routes[0], route);
+      }
       
       // Fit map to bounds of the route
       const bounds = new mapboxgl.LngLatBounds();
@@ -438,6 +509,62 @@ const Map: React.FC<MapProps> = ({
         description: "Could not calculate route. Please try again.",
         duration: 3000,
       });
+    }
+  };
+
+  const addRouteMarkers = (routeData: any, route: RouteOption) => {
+    if (!map.current) return;
+    
+    // Add start and end markers with information
+    const coords = routeData.geometry.coordinates;
+    
+    if (coords.length > 0) {
+      // Start marker
+      const startEl = document.createElement('div');
+      startEl.className = 'route-marker-start';
+      startEl.innerHTML = `<div class="flex items-center bg-eco text-white px-2 py-1 rounded-md text-xs shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+        Start
+      </div>`;
+      
+      new mapboxgl.Marker({ element: startEl })
+        .setLngLat(coords[0])
+        .addTo(map.current);
+        
+      // End marker
+      const endEl = document.createElement('div');
+      endEl.className = 'route-marker-end';
+      endEl.innerHTML = `<div class="flex items-center bg-energy-high text-white px-2 py-1 rounded-md text-xs shadow-md">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 12 16 16 12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>
+        Destination
+      </div>`;
+      
+      new mapboxgl.Marker({ element: endEl })
+        .setLngLat(coords[coords.length - 1])
+        .addTo(map.current);
+        
+      // Add any charging stops if needed
+      if (route.chargingStops > 0) {
+        // Place charging markers at regular intervals
+        const stopsToPlace = Math.min(route.chargingStops, 3); // Limit to 3 visual stops
+        
+        for (let i = 1; i <= stopsToPlace; i++) {
+          const index = Math.floor((coords.length / (stopsToPlace + 1)) * i);
+          
+          if (index < coords.length) {
+            const stopEl = document.createElement('div');
+            stopEl.className = 'route-marker-charging';
+            stopEl.innerHTML = `<div class="flex items-center bg-tech text-white px-2 py-1 rounded-md text-xs shadow-md">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+              Charging Stop
+            </div>`;
+            
+            new mapboxgl.Marker({ element: stopEl })
+              .setLngLat(coords[index])
+              .addTo(map.current);
+          }
+        }
+      }
     }
   };
 
@@ -548,10 +675,44 @@ const Map: React.FC<MapProps> = ({
 
   const handleCompareToggle = () => {
     setShowCompareRoutes(!showCompareRoutes);
+    toast({
+      title: showCompareRoutes ? "Single Route View" : "Compare Routes View",
+      description: showCompareRoutes ? "Showing only selected route" : "Showing all available routes",
+      duration: 2000,
+    });
   };
 
   const handleStationsToggle = () => {
     setShowStations(!showStations);
+    toast({
+      title: showStations ? "Stations Hidden" : "Stations Visible",
+      description: showStations ? "Hiding charging stations" : "Showing charging stations",
+      duration: 2000,
+    });
+  };
+
+  const startNavigation = () => {
+    if (!selectedRoute) {
+      toast({
+        title: "No Route Selected",
+        description: "Please select a route first",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    setActiveNavigation(true);
+    setShowCompareRoutes(false);
+    
+    // Redraw the route to add navigation markers
+    drawRoute(selectedRoute);
+    
+    toast({
+      title: "Navigation Started",
+      description: `Following ${getRouteLabel(selectedRoute.id)}. Estimated arrival in ${selectedRoute.duration} minutes.`,
+      duration: 3000,
+    });
   };
 
   return (
@@ -661,26 +822,12 @@ const Map: React.FC<MapProps> = ({
           <Button 
             variant="outline" 
             size="sm" 
-            className="bg-eco/80 text-white backdrop-blur-sm hover:bg-eco"
-            onClick={() => {
-              if (selectedRoute) {
-                toast({
-                  title: "Navigate",
-                  description: "Starting navigation on selected route",
-                  duration: 3000,
-                });
-              } else {
-                toast({
-                  title: "No Route Selected",
-                  description: "Please select a route first",
-                  variant: "destructive",
-                  duration: 3000,
-                });
-              }
-            }}
+            className={`${activeNavigation ? 'bg-eco text-white' : 'bg-eco/80 text-white backdrop-blur-sm hover:bg-eco'}`}
+            onClick={startNavigation}
+            disabled={!selectedRoute}
           >
             <Navigation className="h-4 w-4 mr-1" />
-            <span className="text-xs">Navigate</span>
+            <span className="text-xs">{activeNavigation ? 'Navigating...' : 'Navigate'}</span>
           </Button>
           
           <Button 
@@ -711,12 +858,55 @@ const Map: React.FC<MapProps> = ({
           <Button 
             variant="outline" 
             size="sm" 
-            className="bg-background/80 backdrop-blur-sm"
-            onClick={() => setShowStations(!showStations)}
+            className={`bg-purple-500/10 hover:bg-purple-500/20 text-purple-500`}
+            onClick={() => {
+              if (allRoutes.length > 0) {
+                setShowCompareRoutes(true);
+              } else {
+                toast({
+                  title: "No Routes Available",
+                  description: "Find a route first to enable comparison",
+                  variant: "destructive",
+                  duration: 3000,
+                });
+              }
+            }}
           >
-            <ListFilter className="h-4 w-4 mr-1" />
-            <span className="text-xs">Filter Stations</span>
+            <Route className="h-4 w-4 mr-1" />
+            <span className="text-xs">All Routes</span>
           </Button>
+        </div>
+      )}
+      
+      {/* Navigation status */}
+      {activeNavigation && selectedRoute && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-sm rounded-md p-2 shadow-md border border-eco">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center">
+              <Navigation className="h-4 w-4 text-eco mr-1" />
+              <span className="text-sm font-medium">{getRouteLabel(selectedRoute.id)}</span>
+            </div>
+            <div className="text-xs">
+              <span className="font-medium">{selectedRoute.distance} km</span>
+              <span className="mx-1">•</span>
+              <span>{selectedRoute.duration} min</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 p-0 px-2"
+              onClick={() => {
+                setActiveNavigation(false);
+                toast({
+                  title: "Navigation Ended",
+                  description: "Turn-by-turn navigation stopped",
+                  duration: 2000,
+                });
+              }}
+            >
+              <span className="text-xs">End</span>
+            </Button>
+          </div>
         </div>
       )}
     </div>
