@@ -13,7 +13,10 @@ import {
   Navigation,
   Zap,
   MapPin,
-  Settings
+  Settings,
+  BarChart2,
+  Star,
+  IndianRupee
 } from 'lucide-react';
 import { RouteOption, VehicleData, WeatherData } from '@/hooks/useMapData';
 
@@ -70,6 +73,22 @@ const Dashboard: React.FC<DashboardProps> = ({
       onAction(action);
     }
   };
+
+  // Main actions for the dashboard
+  const primaryActions = [
+    { name: 'navigate', icon: <Navigation className="h-4 w-4" />, label: 'Navigate', color: 'bg-eco/10 hover:bg-eco/20' },
+    { name: 'recharge', icon: <Zap className="h-4 w-4" />, label: 'Recharge', color: 'bg-energy-medium/10 hover:bg-energy-medium/20' },
+    { name: 'findCharging', icon: <MapPin className="h-4 w-4" />, label: 'Find Charging', color: 'bg-tech/10 hover:bg-tech/20' },
+    { name: 'settings', icon: <Settings className="h-4 w-4" />, label: 'Settings', color: 'bg-gray-200/50 hover:bg-gray-200' }
+  ];
+
+  // Secondary actions for the expanded dashboard
+  const secondaryActions = [
+    { name: 'analytics', icon: <BarChart2 className="h-4 w-4" />, label: 'Analytics', color: 'bg-tech-light/10 hover:bg-tech-light/20' },
+    { name: 'saved', icon: <Star className="h-4 w-4" />, label: 'Saved Routes', color: 'bg-orange-300/10 hover:bg-orange-300/20' },
+    { name: 'savings', icon: <IndianRupee className="h-4 w-4" />, label: 'Cost Savings', color: 'bg-purple-300/10 hover:bg-purple-300/20' },
+    { name: 'compare', icon: <Leaf className="h-4 w-4" />, label: 'Compare Routes', color: 'bg-blue-300/10 hover:bg-blue-300/20' }
+  ];
   
   return (
     <div>
@@ -121,43 +140,35 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
       </div>
 
-      {/* Dashboard action buttons */}
+      {/* Primary dashboard action buttons */}
       <div className="flex flex-wrap gap-2 mb-2">
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-1 bg-eco/10 hover:bg-eco/20"
-          onClick={() => handleActionClick('navigate')}
-        >
-          <Navigation className="h-4 w-4" />
-          <span>Navigate</span>
-        </Button>
-        
-        <Button 
-          variant="outline"
-          className="flex items-center gap-1 bg-energy-medium/10 hover:bg-energy-medium/20"
-          onClick={() => handleActionClick('recharge')}
-        >
-          <Zap className="h-4 w-4" />
-          <span>Recharge</span>
-        </Button>
-        
-        <Button 
-          variant="outline"
-          className="flex items-center gap-1 bg-tech/10 hover:bg-tech/20"
-          onClick={() => handleActionClick('findCharging')}
-        >
-          <MapPin className="h-4 w-4" />
-          <span>Find Charging</span>
-        </Button>
-        
-        <Button 
-          variant="outline"
-          className="flex items-center gap-1 bg-gray-200/50 hover:bg-gray-200"
-          onClick={() => handleActionClick('settings')}
-        >
-          <Settings className="h-4 w-4" />
-          <span>Settings</span>
-        </Button>
+        {primaryActions.map(action => (
+          <Button 
+            key={action.name}
+            variant="outline" 
+            className={`flex items-center gap-1 ${action.color}`}
+            onClick={() => handleActionClick(action.name)}
+          >
+            {action.icon}
+            <span>{action.label}</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* Secondary dashboard action buttons */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {secondaryActions.map(action => (
+          <Button 
+            key={action.name}
+            variant="outline" 
+            size="sm"
+            className={`flex items-center gap-1 ${action.color}`}
+            onClick={() => handleActionClick(action.name)}
+          >
+            {action.icon}
+            <span>{action.label}</span>
+          </Button>
+        ))}
       </div>
 
       {/* Range warning if battery is low */}

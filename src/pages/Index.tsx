@@ -12,8 +12,10 @@ import useMapData, { Location } from '@/hooks/useMapData';
 import { ThemeProvider } from 'next-themes';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/toaster";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BarChart2, IndianRupee, Star, Battery } from 'lucide-react';
 
 interface User {
   email: string;
@@ -39,6 +41,7 @@ const Index = () => {
   } = useMapData();
   
   const [activeTab, setActiveTab] = useState('routes');
+  const [activePage, setActivePage] = useState('main');
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
@@ -160,8 +163,79 @@ const Index = () => {
         });
         // In a real app, this would open a settings panel
         break;
+      case 'analytics':
+        setActivePage('analytics');
+        toast({
+          title: "Analytics",
+          description: "Energy analytics dashboard opened",
+          duration: 3000,
+        });
+        break;
+      case 'saved':
+        setActivePage('saved');
+        toast({
+          title: "Saved Routes",
+          description: "Your saved routes are displayed",
+          duration: 3000,
+        });
+        break;
+      case 'savings':
+        setActivePage('savings');
+        toast({
+          title: "Cost Savings",
+          description: "Your EV cost savings overview",
+          duration: 3000,
+        });
+        break;
+      case 'compare':
+        toast({
+          title: "Compare Routes",
+          description: "Now showing all available routes on the map",
+          duration: 3000,
+        });
+        // The Map component will handle this through its props
+        break;
       default:
         break;
+    }
+  };
+
+  // Function to handle navbar menu clicks
+  const handleNavTabChange = (tab: string) => {
+    switch (tab) {
+      case 'Map':
+        setActivePage('main');
+        setActiveTab('routes');
+        break;
+      case 'Stations':
+        setActivePage('main');
+        setActiveTab('charging');
+        break;
+      case 'Analytics':
+        setActivePage('analytics');
+        break;
+      case 'Saved':
+        setActivePage('saved');
+        break;
+      case 'Savings':
+        setActivePage('savings');
+        break;
+      case 'Profile':
+        toast({
+          title: "Profile",
+          description: "User profile view",
+          duration: 3000,
+        });
+        break;
+      case 'Settings':
+        toast({
+          title: "Settings",
+          description: "App settings view",
+          duration: 3000,
+        });
+        break;
+      default:
+        setActivePage('main');
     }
   };
 
@@ -174,10 +248,116 @@ const Index = () => {
     );
   }
 
+  // Render analytics page
+  const renderAnalytics = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <BarChart2 className="mr-2 h-5 w-5 text-tech" />
+            Energy Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p>Your detailed energy usage and efficiency analytics will be displayed here.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-eco/10 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Average Efficiency</p>
+                <p className="text-2xl font-bold">4.8 km/kWh</p>
+              </div>
+              
+              <div className="p-4 bg-tech/10 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Total Distance</p>
+                <p className="text-2xl font-bold">428 km</p>
+              </div>
+              
+              <div className="p-4 bg-energy-medium/10 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Energy Used</p>
+                <p className="text-2xl font-bold">89.2 kWh</p>
+              </div>
+            </div>
+            
+            {/* Placeholder for charts */}
+            <div className="h-40 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+              <p className="text-muted-foreground">Energy usage charts will be displayed here</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <EnergyPrediction 
+        selectedRoute={selectedRoute}
+        vehicle={vehicle}
+        weather={weather}
+      />
+    </div>
+  );
+
+  // Render savings page
+  const renderSavings = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <IndianRupee className="mr-2 h-5 w-5 text-eco" />
+            Cost Savings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <p>Your EV cost savings compared to conventional vehicles.</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 bg-eco/10 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Monthly Savings</p>
+                <p className="text-2xl font-bold">₹4,200</p>
+              </div>
+              
+              <div className="p-4 bg-tech/10 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">CO₂ Reduction</p>
+                <p className="text-2xl font-bold">245 kg</p>
+              </div>
+              
+              <div className="p-4 bg-energy-medium/10 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">Fuel Saved</p>
+                <p className="text-2xl font-bold">102 L</p>
+              </div>
+            </div>
+            
+            {/* Placeholder for savings chart */}
+            <div className="h-40 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+              <p className="text-muted-foreground">Savings comparison charts will be displayed here</p>
+            </div>
+            
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <h3 className="font-medium text-sm mb-2">Cost Comparison (per 100 km)</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Petrol Cost</p>
+                  <p className="font-bold">₹950</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Electricity Cost</p>
+                  <p className="font-bold">₹250</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <div className="min-h-screen flex flex-col">
-        <Navbar user={user} onLogout={handleLogout} />
+        <Navbar 
+          user={user} 
+          onLogout={handleLogout} 
+          onTabChange={handleNavTabChange}
+        />
         <main className="flex-1">
           <div className="container py-4 space-y-6">
             <Dashboard 
@@ -187,27 +367,56 @@ const Index = () => {
               onAction={handleDashboardAction}
             />
             
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Map Section */}
-              <div className="lg:col-span-8">
-                <Map 
-                  locations={locations} 
-                  selectedRoute={selectedRoute}
-                  chargingStations={chargingStations}
-                  onLocationUpdate={handleLocationUpdate}
-                />
-              </div>
-              
-              {/* Controls Section */}
-              <div className="lg:col-span-4">
-                {isMobile ? (
-                  <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="grid grid-cols-3 mb-4">
-                      <TabsTrigger value="routes">Routes</TabsTrigger>
-                      <TabsTrigger value="energy">Energy</TabsTrigger>
-                      <TabsTrigger value="charging">Charging</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="routes">
+            {activePage === 'main' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Map Section */}
+                <div className="lg:col-span-8">
+                  <Map 
+                    locations={locations} 
+                    selectedRoute={selectedRoute}
+                    allRoutes={routes}
+                    chargingStations={chargingStations}
+                    onLocationUpdate={handleLocationUpdate}
+                    onRouteClick={handleRouteSelect}
+                  />
+                </div>
+                
+                {/* Controls Section */}
+                <div className="lg:col-span-4">
+                  {isMobile ? (
+                    <Tabs value={activeTab} onValueChange={setActiveTab}>
+                      <TabsList className="grid grid-cols-3 mb-4">
+                        <TabsTrigger value="routes">Routes</TabsTrigger>
+                        <TabsTrigger value="energy">Energy</TabsTrigger>
+                        <TabsTrigger value="charging">Charging</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="routes">
+                        <RouteOptimizer 
+                          routes={routes}
+                          selectedRoute={selectedRoute}
+                          onSelectRoute={handleRouteSelect}
+                          vehicle={vehicle}
+                          isLoading={isLoading}
+                          onFindRoutes={getRoutes}
+                          onAddLocation={addLocation}
+                        />
+                      </TabsContent>
+                      <TabsContent value="energy">
+                        <EnergyPrediction 
+                          selectedRoute={selectedRoute}
+                          vehicle={vehicle}
+                          weather={weather}
+                        />
+                      </TabsContent>
+                      <TabsContent value="charging">
+                        <ChargingStations 
+                          chargingStations={chargingStations}
+                          isLoading={isLoading}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  ) : (
+                    <div className="space-y-6">
                       <RouteOptimizer 
                         routes={routes}
                         selectedRoute={selectedRoute}
@@ -217,47 +426,50 @@ const Index = () => {
                         onFindRoutes={getRoutes}
                         onAddLocation={addLocation}
                       />
-                    </TabsContent>
-                    <TabsContent value="energy">
+                      
                       <EnergyPrediction 
                         selectedRoute={selectedRoute}
                         vehicle={vehicle}
                         weather={weather}
                       />
-                    </TabsContent>
-                    <TabsContent value="charging">
+                      
                       <ChargingStations 
                         chargingStations={chargingStations}
                         isLoading={isLoading}
                       />
-                    </TabsContent>
-                  </Tabs>
-                ) : (
-                  <div className="space-y-6">
-                    <RouteOptimizer 
-                      routes={routes}
-                      selectedRoute={selectedRoute}
-                      onSelectRoute={handleRouteSelect}
-                      vehicle={vehicle}
-                      isLoading={isLoading}
-                      onFindRoutes={getRoutes}
-                      onAddLocation={addLocation}
-                    />
-                    
-                    <EnergyPrediction 
-                      selectedRoute={selectedRoute}
-                      vehicle={vehicle}
-                      weather={weather}
-                    />
-                    
-                    <ChargingStations 
-                      chargingStations={chargingStations}
-                      isLoading={isLoading}
-                    />
-                  </div>
-                )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+            
+            {activePage === 'analytics' && renderAnalytics()}
+            
+            {activePage === 'saved' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Star className="mr-2 h-5 w-5 text-orange-400" />
+                      Saved Routes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* This will be replaced with actual saved routes */}
+                      <p className="text-sm text-muted-foreground">
+                        Save your frequently used routes for quick access. Your saved routes will appear here.
+                      </p>
+                      <div className="h-40 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                        <p className="text-muted-foreground">No saved routes yet</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            {activePage === 'savings' && renderSavings()}
           </div>
         </main>
       </div>

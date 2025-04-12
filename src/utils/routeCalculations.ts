@@ -33,6 +33,13 @@ const CONSTANTS = {
   // Temperature impact
   HIGH_TEMP_IMPACT: 1.12, // 12% increase when > 35°C (AC usage)
   LOW_TEMP_IMPACT: 1.15, // 15% increase when < 10°C (heating usage)
+  
+  // Route colors for visualization
+  ROUTE_COLORS: {
+    'eco-route': '#10b981', // green for eco route
+    'fast-route': '#ef4444', // red for fast route
+    'balanced-route': '#8b5cf6', // purple for balanced route
+  }
 };
 
 /**
@@ -161,4 +168,61 @@ export const calculateChargingStops = (
   const stops = Math.ceil(distance / effectiveRange) - 1;
   
   return Math.max(0, stops);
+};
+
+/**
+ * Get color for route visualization based on route type
+ */
+export const getRouteColor = (routeType: string): string => {
+  // @ts-ignore
+  return CONSTANTS.ROUTE_COLORS[routeType] || '#3b82f6'; // Default to blue
+};
+
+/**
+ * Calculate estimated cost savings compared to a gasoline vehicle
+ */
+export const calculateCostSavings = (
+  distance: number,
+  electricityRate: number = 8, // INR per kWh (average in India)
+  fuelPrice: number = 100, // INR per liter (average petrol price in India)
+  fuelEfficiency: number = 15 // km per liter (average car in India)
+): number => {
+  // Cost for EV (Rs per km)
+  const evCostPerKm = (CONSTANTS.BASE_EFFICIENCY * electricityRate);
+  
+  // Cost for gasoline vehicle (Rs per km)
+  const gasCostPerKm = fuelPrice / fuelEfficiency;
+  
+  // Savings per km
+  const savingsPerKm = gasCostPerKm - evCostPerKm;
+  
+  // Total savings
+  const totalSavings = savingsPerKm * distance;
+  
+  return Math.round(totalSavings);
+};
+
+/**
+ * Calculate monthly cost savings based on average daily travel
+ */
+export const calculateMonthlySavings = (
+  averageDailyDistance: number = 40, // Average daily distance in km
+  electricityRate: number = 8, // INR per kWh
+  fuelPrice: number = 100 // INR per liter
+): number => {
+  const monthlySavings = calculateCostSavings(averageDailyDistance * 30, electricityRate, fuelPrice);
+  return monthlySavings;
+};
+
+/**
+ * Calculate lifetime savings of an EV compared to gasoline vehicle
+ */
+export const calculateLifetimeSavings = (
+  yearlyDistance: number = 15000, // km per year
+  vehicleLifetime: number = 8, // years
+  electricityRate: number = 8, // INR per kWh
+  fuelPrice: number = 100 // INR per liter
+): number => {
+  const lifetimeSavings = calculateCostSavings(yearlyDistance * vehicleLifetime, electricityRate, fuelPrice);
+  return lifetimeSavings;
 };

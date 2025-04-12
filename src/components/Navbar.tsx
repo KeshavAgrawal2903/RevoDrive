@@ -31,6 +31,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 
 interface User {
   name: string;
@@ -40,13 +41,27 @@ interface User {
 interface NavbarProps {
   user: User | null;
   onLogout: () => void;
+  onTabChange?: (tab: string) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
+const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onTabChange }) => {
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
   
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  const handleMenuClick = (tabName: string) => {
+    if (onTabChange) {
+      onTabChange(tabName);
+    }
+    
+    toast({
+      title: `${tabName} View`,
+      description: `Switched to ${tabName} view`,
+      duration: 3000,
+    });
   };
 
   return (
@@ -64,7 +79,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
           <nav className="hidden md:flex items-center space-x-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={() => handleMenuClick('Map')}
+                >
                   <Map className="h-4 w-4" />
                   <span>Map</span>
                 </Button>
@@ -74,7 +94,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={() => handleMenuClick('Stations')}
+                >
                   <Battery className="h-4 w-4" />
                   <span>Stations</span>
                 </Button>
@@ -84,7 +109,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={() => handleMenuClick('Analytics')}
+                >
                   <BarChart2 className="h-4 w-4" />
                   <span>Analytics</span>
                 </Button>
@@ -94,7 +124,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={() => handleMenuClick('Saved')}
+                >
                   <Star className="h-4 w-4" />
                   <span>Saved</span>
                 </Button>
@@ -104,7 +139,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={() => handleMenuClick('Savings')}
+                >
                   <IndianRupee className="h-4 w-4" />
                   <span>Savings</span>
                 </Button>
@@ -128,6 +168,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
             variant="ghost"
             size="icon"
             aria-label="About"
+            onClick={() => toast({
+              title: "About EcoRoute AI",
+              description: "An intelligent route planner for EV drivers in India. Find the most energy-efficient routes, charging stations, and track your savings.",
+              duration: 5000,
+            })}
           >
             <Info className="h-5 w-5" />
           </Button>
@@ -144,13 +189,13 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleMenuClick('Profile')}>
                   <User className="h-4 w-4 mr-2" /> Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleMenuClick('Saved')}>
                   <Star className="h-4 w-4 mr-2" /> Saved Routes
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleMenuClick('Settings')}>
                   <Settings className="h-4 w-4 mr-2" /> Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
