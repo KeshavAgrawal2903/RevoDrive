@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -214,15 +213,15 @@ const Map: React.FC<MapProps> = ({
     
     try {
       // Remove existing route layers
-      routes.forEach((_, index) => {
-        if (map.current?.getLayer(`route-${index}`)) {
-          map.current.removeLayer(`route-${index}`);
+      for (let i = 0; i < 5; i++) {
+        if (map.current?.getLayer(`route-${i}`)) {
+          map.current.removeLayer(`route-${i}`);
         }
         
-        if (map.current?.getSource(`route-${index}`)) {
-          map.current.removeSource(`route-${index}`);
+        if (map.current?.getSource(`route-${i}`)) {
+          map.current.removeSource(`route-${i}`);
         }
-      });
+      }
       
       // Find start and end locations
       const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
@@ -230,21 +229,16 @@ const Map: React.FC<MapProps> = ({
       
       if (!start || !end) return;
       
-      // Create waypoints array
-      const waypoints = [
-        [start.lng, start.lat],
-        ...locations
-          .filter(loc => loc.type === 'waypoint')
-          .map(loc => [loc.lng, loc.lat] as [number, number]),
-        [end.lng, end.lat]
-      ];
-      
-      // Draw each route with a different color
+      // Create different waypoints for each route type to ensure distinct paths
       const bounds = new mapboxgl.LngLatBounds();
       
       for (let i = 0; i < routes.length; i++) {
         const route = routes[i];
         const color = getRouteColor(route.id);
+        
+        // Create slightly different waypoints for each route type to ensure they look different
+        // This simulates what a real routing service would return for different route types
+        const waypoints = generateWaypointsForRouteType(start, end, route.id);
         
         // Use Mapbox Directions API to get route
         const query = await fetch(
@@ -337,6 +331,48 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
+  // Helper function to generate different waypoints for each route type
+  const generateWaypointsForRouteType = (start: Location, end: Location, routeType: string): Array<[number, number]> => {
+    // Base waypoints are start and end
+    const baseWaypoints: Array<[number, number]> = [
+      [start.lng, start.lat],
+      [end.lng, end.lat]
+    ];
+    
+    // Add intermediate waypoints based on route type to make the routes visually different
+    const midLng = (start.lng + end.lng) / 2;
+    const midLat = (start.lat + end.lat) / 2;
+    
+    // Calculate distance to determine waypoint offset
+    const distance = Math.sqrt(
+      Math.pow(end.lng - start.lng, 2) + Math.pow(end.lat - start.lat, 2)
+    );
+    
+    const offset = distance * 0.15; // 15% offset
+    
+    switch (routeType) {
+      case 'eco-route':
+        // Eco route takes a slight detour to the south
+        return [
+          [start.lng, start.lat],
+          [midLng - offset * 0.5, midLat - offset],
+          [end.lng, end.lat]
+        ];
+      case 'fast-route':
+        // Fast route is most direct
+        return baseWaypoints;
+      case 'balanced-route':
+        // Balanced route takes a slight detour to the north
+        return [
+          [start.lng, start.lat],
+          [midLng + offset * 0.5, midLat + offset * 0.8],
+          [end.lng, end.lat]
+        ];
+      default:
+        return baseWaypoints;
+    }
+  };
+
   // Helper function to slightly offset routes for better visualization
   const offsetRouteGeometry = (geometry: any, routeIndex: number): any => {
     if (routeIndex === 0) return geometry; // No offset for first route
@@ -365,7 +401,7 @@ const Map: React.FC<MapProps> = ({
     // Create new legend
     const legend = document.createElement('div');
     legend.id = 'route-legend';
-    legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200';
+    legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200 animate-fade-in';
     
     const title = document.createElement('div');
     title.textContent = 'Route Comparison';
@@ -380,7 +416,10 @@ const Map: React.FC<MapProps> = ({
     
     routes.forEach(route => {
       const item = document.createElement('div');
-      item.className = 'flex items-center text-xs mb-2';
+      item.className = 'flex items-center text-xs mb-2 hover:bg-gray-50 p-1 rounded cursor-pointer';
+      item.onclick = () => {
+        if (onRouteClick) onRouteClick(route);
+      };
       
       const color = document.createElement('div');
       color.className = 'w-4 h-2 rounded-full mr-2';
@@ -434,14 +473,8 @@ const Map: React.FC<MapProps> = ({
         map.current.removeSource('route');
       }
       
-      // Create waypoints array including start, end, and any waypoints
-      const waypoints = [
-        [start.lng, start.lat],
-        ...locations
-          .filter(loc => loc.type === 'waypoint')
-          .map(loc => [loc.lng, loc.lat] as [number, number]),
-        [end.lng, end.lat]
-      ];
+      // Generate waypoints based on route type to ensure a unique path visualization
+      const waypoints = generateWaypointsForRouteType(start, end, route.id);
       
       // Use Mapbox Directions API to get route
       const query = await fetch(
@@ -564,6 +597,24 @@ const Map: React.FC<MapProps> = ({
               .addTo(map.current);
           }
         }
+      }
+      
+      // Add route information at key points
+      const midPoint = Math.floor(coords.length / 2);
+      if (midPoint < coords.length) {
+        const infoEl = document.createElement('div');
+        infoEl.className = 'route-marker-info';
+        infoEl.innerHTML = `<div class="flex items-center bg-white px-2 py-1 rounded-md text-xs shadow-md border border-${getRouteColor(route.id)} animate-float">
+          <span class="font-medium" style="color: ${getRouteColor(route.id)};">${getRouteLabel(route.id)}</span>
+          <span class="mx-1">•</span>
+          <span>${route.distance} km</span>
+          <span class="mx-1">•</span>
+          <span>${route.duration} min</span>
+        </div>`;
+        
+        new mapboxgl.Marker({ element: infoEl })
+          .setLngLat(coords[midPoint])
+          .addTo(map.current);
       }
     }
   };
@@ -880,7 +931,7 @@ const Map: React.FC<MapProps> = ({
       
       {/* Navigation status */}
       {activeNavigation && selectedRoute && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-sm rounded-md p-2 shadow-md border border-eco">
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-sm rounded-md p-2 shadow-md border border-eco animate-fade-in">
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
               <Navigation className="h-4 w-4 text-eco mr-1" />
