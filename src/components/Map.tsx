@@ -37,6 +37,9 @@ declare global {
   }
 }
 
+// Define types for map elements
+type MapElement = google.maps.Marker | google.maps.Polyline;
+
 const GOOGLE_MAPS_API_KEY = 'AIzaSyBJ1SZvlfgcy2nTGBraa2MkS5amw_lOTM8';
 
 const Map: React.FC<MapProps> = ({ 
@@ -58,7 +61,7 @@ const Map: React.FC<MapProps> = ({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
   const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
-  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
+  const [mapElements, setMapElements] = useState<MapElement[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -81,7 +84,11 @@ const Map: React.FC<MapProps> = ({
     }
     
     return () => {
-      markers.forEach(marker => marker.setMap(null));
+      mapElements.forEach(element => {
+        if (element instanceof google.maps.Marker || element instanceof google.maps.Polyline) {
+          element.setMap(null);
+        }
+      });
     };
   }, []);
 
@@ -173,7 +180,7 @@ const Map: React.FC<MapProps> = ({
               title: 'Your Location'
             });
             
-            setMarkers(prev => [...prev, marker]);
+            setMapElements(prev => [...prev, marker]);
             
             if (onLocationUpdate) {
               onLocationUpdate({
@@ -215,8 +222,13 @@ const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!map) return;
     
-    markers.forEach(marker => marker.setMap(null));
-    const newMarkers: google.maps.Marker[] = [];
+    mapElements.forEach(element => {
+      if (element instanceof google.maps.Marker || element instanceof google.maps.Polyline) {
+        element.setMap(null);
+      }
+    });
+    
+    const newMapElements: MapElement[] = [];
     
     locations.forEach(location => {
       let iconColor = '#10b981';
@@ -247,7 +259,7 @@ const Map: React.FC<MapProps> = ({
         infoWindow.open(map, marker);
       });
       
-      newMarkers.push(marker);
+      newMapElements.push(marker);
     });
     
     if (showStations) {
@@ -290,11 +302,11 @@ const Map: React.FC<MapProps> = ({
           infoWindow.open(map, marker);
         });
         
-        newMarkers.push(marker);
+        newMapElements.push(marker);
       });
     }
     
-    setMarkers(newMarkers);
+    setMapElements(newMapElements);
     
     if (showCompareRoutes && allRoutes.length > 0) {
       drawAllRoutes(allRoutes);
@@ -405,7 +417,7 @@ const Map: React.FC<MapProps> = ({
                 strokeOpacity: 0
               });
               
-              setMarkers(prev => [...prev, polylineWithSymbols]);
+              setMapElements(prev => [...prev, polylineWithSymbols]);
             }
             
             renderers.push(renderer);
@@ -422,21 +434,21 @@ const Map: React.FC<MapProps> = ({
         });
       });
     });
-  };
-
-  Promise.all(routePromises).then(() => {
-    map!.fitBounds(bounds);
     
-    createComparisonLegend(routes);
-  }).catch(error => {
-    console.error('Error drawing routes:', error);
-    toast({
-      title: "Route Error",
-      description: "Could not calculate all routes. Please try again.",
-      variant: "destructive",
-      duration: 3000,
+    Promise.all(routePromises).then(() => {
+      map!.fitBounds(bounds);
+      
+      createComparisonLegend(routes);
+    }).catch(error => {
+      console.error('Error drawing routes:', error);
+      toast({
+        title: "Route Error",
+        description: "Could not calculate all routes. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
     });
-  });
+  };
 
   const generateWaypointsForRouteType = (start: Location, end: Location, routeType: string): google.maps.DirectionsWaypoint[] => {
     const distance = google.maps.geometry.spherical.computeDistanceBetween(
@@ -594,7 +606,7 @@ const Map: React.FC<MapProps> = ({
         endInfoWindow.open(map, endMarkerObj);
       });
       
-      setMarkers(prev => [...prev, startMarkerObj, endMarkerObj]);
+      setMapElements(prev => [...prev, startMarkerObj, endMarkerObj]);
       
       if (leg.steps.length > 0) {
         const midIndex = Math.floor(leg.steps.length / 2);
@@ -658,7 +670,7 @@ const Map: React.FC<MapProps> = ({
               chargingInfoWindow.open(map, chargingMarker);
             });
             
-            setMarkers(prev => [...prev, chargingMarker]);
+            setMapElements(prev => [...prev, chargingMarker]);
           }
         }
       }
