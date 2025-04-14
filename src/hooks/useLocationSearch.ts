@@ -9,6 +9,9 @@ interface GeocodingFeature {
   place_type: string[];
 }
 
+// Store the Mapbox API key
+const MAPBOX_API_KEY = 'pk.eyJ1Ijoia2VzaGF2LXNybSIsImEiOiJjbTljYjFtOWEwZ2VmMm9xdzBoZGZqazZwIn0.l16befAq12p5KdoD2DbTcw';
+
 export const useLocationSearch = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<Location[]>([]);
@@ -26,11 +29,9 @@ export const useLocationSearch = () => {
     setIsSearching(true);
     
     try {
-      const mapApiKey = localStorage.getItem('mapApiKey');
-      if (!mapApiKey) {
-        throw new Error('Mapbox API key not found');
-      }
-
+      // Use the hardcoded API key
+      const mapApiKey = MAPBOX_API_KEY;
+      
       // Add India country filter for more relevant results
       const countryFilter = limitToIndia ? '&country=in' : '';
       
@@ -57,7 +58,7 @@ export const useLocationSearch = () => {
       console.error('Error searching locations:', error);
       return [];
     } finally {
-      setIsSearching(false);
+      setIsLoading(false);
     }
   }, []);
 

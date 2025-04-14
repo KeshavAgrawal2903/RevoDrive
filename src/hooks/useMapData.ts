@@ -6,6 +6,9 @@ import {
   calculateChargingStops
 } from '@/utils/routeCalculations';
 
+// Hardcoded Mapbox API key
+const MAPBOX_API_KEY = 'pk.eyJ1Ijoia2VzaGF2LXNybSIsImEiOiJjbTljYjFtOWEwZ2VmMm9xdzBoZGZqazZwIn0.l16befAq12p5KdoD2DbTcw';
+
 // Types for locations and routes
 export interface Location {
   id: string;
@@ -222,7 +225,7 @@ const getNearbyChargingStations = async (lat: number, lng: number, radius: numbe
 };
 
 // Calculate routes between locations using Mapbox Directions API
-const calculateRoutes = async (start: Location, end: Location, apiKey: string): Promise<RouteOption[]> => {
+const calculateRoutes = async (start: Location, end: Location): Promise<RouteOption[]> => {
   try {
     console.log('Finding routes with accurate calculations...');
     
@@ -460,12 +463,10 @@ const useMapData = () => {
     setIsLoading(true);
     
     try {
-      const apiKey = localStorage.getItem('mapApiKey');
-      if (!apiKey) {
-        throw new Error('Mapbox API key not found');
-      }
+      // Use the hardcoded API key instead of getting from localStorage
+      const apiKey = MAPBOX_API_KEY;
       
-      const newRoutes = await calculateRoutes(start, end, apiKey);
+      const newRoutes = await calculateRoutes(start, end);
       
       if (newRoutes.length > 0) {
         setRoutes(newRoutes);
