@@ -61,11 +61,9 @@ const Map: React.FC<MapProps> = ({
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const { toast } = useToast();
 
-  // Initialize Google Maps
   useEffect(() => {
     if (!mapContainerRef.current) return;
     
-    // Load Google Maps API script if it's not already loaded
     if (!window.google || !window.google.maps) {
       const script = document.createElement('script');
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
@@ -83,18 +81,16 @@ const Map: React.FC<MapProps> = ({
     }
     
     return () => {
-      // Clean up markers
       markers.forEach(marker => marker.setMap(null));
     };
   }, []);
 
-  // Initialize map
   const initMap = () => {
     if (!mapContainerRef.current || !window.google) return;
     
     try {
       const newMap = new google.maps.Map(mapContainerRef.current, {
-        center: { lat: 28.6139, lng: 77.2090 }, // Default to Delhi, India
+        center: { lat: 28.6139, lng: 77.2090 },
         zoom: 10,
         mapTypeControl: true,
         streetViewControl: false,
@@ -120,13 +116,12 @@ const Map: React.FC<MapProps> = ({
       
       setMap(newMap);
       
-      // Initialize directions service and renderer
       const newDirectionsService = new google.maps.DirectionsService();
       const newDirectionsRenderer = new google.maps.DirectionsRenderer({
         map: newMap,
         suppressMarkers: true,
         polylineOptions: {
-          strokeColor: '#2e7d32', // eco green
+          strokeColor: '#2e7d32',
           strokeWeight: 6,
           strokeOpacity: 0.8
         }
@@ -135,7 +130,6 @@ const Map: React.FC<MapProps> = ({
       setDirectionsService(newDirectionsService);
       setDirectionsRenderer(newDirectionsRenderer);
       
-      // Get user's current location if needed
       if (useCurrentLocation) {
         getUserLocation();
       }
@@ -152,7 +146,6 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Handle getting user's current location
   const getUserLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -166,7 +159,6 @@ const Map: React.FC<MapProps> = ({
             map.setCenter(userLoc);
             map.setZoom(13);
             
-            // Add marker for user location
             const marker = new google.maps.Marker({
               position: userLoc,
               map: map,
@@ -220,17 +212,14 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Update markers when locations or chargingStations change
   useEffect(() => {
     if (!map) return;
     
-    // Clear existing markers
     markers.forEach(marker => marker.setMap(null));
     const newMarkers: google.maps.Marker[] = [];
     
-    // Add markers for locations
     locations.forEach(location => {
-      let iconColor = '#10b981'; // Default green color
+      let iconColor = '#10b981';
       
       if (location.type === 'end') iconColor = '#f43f5e';
       else if (location.type === 'waypoint') iconColor = '#8b5cf6';
@@ -250,7 +239,6 @@ const Map: React.FC<MapProps> = ({
         title: location.name
       });
       
-      // Add info window
       const infoWindow = new google.maps.InfoWindow({
         content: `<div><h3>${location.name}</h3><p>${location.type}</p></div>`
       });
@@ -262,7 +250,6 @@ const Map: React.FC<MapProps> = ({
       newMarkers.push(marker);
     });
     
-    // Add markers for charging stations if they should be shown
     if (showStations) {
       chargingStations.forEach(station => {
         const iconColor = station.available ? '#10b981' : '#ef4444';
@@ -281,7 +268,6 @@ const Map: React.FC<MapProps> = ({
           title: station.name
         });
         
-        // Add info window for the station
         const infoContent = `
           <div style="padding: 8px;">
             <h3 style="font-weight: bold; margin-bottom: 5px;">${station.name}</h3>
@@ -310,27 +296,21 @@ const Map: React.FC<MapProps> = ({
     
     setMarkers(newMarkers);
     
-    // Draw routes
     if (showCompareRoutes && allRoutes.length > 0) {
-      // Draw all routes for comparison
       drawAllRoutes(allRoutes);
     } else if (selectedRoute && locations.length >= 2) {
-      // Draw just the selected route
       drawRoute(selectedRoute);
     }
   }, [map, locations, chargingStations, selectedRoute, allRoutes, showCompareRoutes, showStations]);
 
-  // Draw a single route
   const drawRoute = (route: RouteOption) => {
     if (!map || !directionsService || !directionsRenderer || locations.length < 2) return;
     
-    // Find start and end locations
     const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
     const end = locations.find(loc => loc.type === 'end');
     
     if (!start || !end) return;
     
-    // Generate waypoints based on route type to ensure a unique path visualization
     const waypoints = generateWaypointsForRouteType(start, end, route.id);
     
     directionsService.route({
@@ -341,7 +321,6 @@ const Map: React.FC<MapProps> = ({
       optimizeWaypoints: false
     }, (response, status) => {
       if (status === google.maps.DirectionsStatus.OK && response) {
-        // Set the route color based on route type
         directionsRenderer.setOptions({
           polylineOptions: {
             strokeColor: getRouteColor(route.id),
@@ -352,15 +331,12 @@ const Map: React.FC<MapProps> = ({
         
         directionsRenderer.setDirections(response);
         
-        // Add route markers for additional information
         if (activeNavigation && response.routes[0]) {
           addRouteMarkers(response.routes[0], route);
         }
         
-        // Create route legend for the selected route
         createSingleRouteLegend(route);
         
-        // Fit bounds to the route
         if (response.routes[0] && response.routes[0].bounds) {
           map.fitBounds(response.routes[0].bounds);
         }
@@ -376,28 +352,22 @@ const Map: React.FC<MapProps> = ({
     });
   };
 
-  // Draw multiple routes for comparison
   const drawAllRoutes = (routes: RouteOption[]) => {
     if (!map || !directionsService || locations.length < 2) return;
     
-    // Find start and end locations
     const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
     const end = locations.find(loc => loc.type === 'end');
     
     if (!start || !end) return;
     
-    // Clear existing directionsRenderer
     if (directionsRenderer) {
       directionsRenderer.setMap(null);
     }
     
-    // Create array to store all rendered directions
     const renderers: google.maps.DirectionsRenderer[] = [];
     
-    // Create a boundary for fitting all routes
     const bounds = new google.maps.LatLngBounds();
     
-    // Create promises for all routes
     const routePromises = routes.map((route, index) => {
       return new Promise<void>((resolve, reject) => {
         const waypoints = generateWaypointsForRouteType(start!, end!, route.id);
@@ -410,7 +380,6 @@ const Map: React.FC<MapProps> = ({
           optimizeWaypoints: false
         }, (response, status) => {
           if (status === google.maps.DirectionsStatus.OK && response) {
-            // Create a new directionsRenderer for each route
             const renderer = new google.maps.DirectionsRenderer({
               map: map,
               directions: response,
@@ -420,53 +389,45 @@ const Map: React.FC<MapProps> = ({
                 strokeColor: getRouteColor(route.id),
                 strokeWeight: route.id === selectedRoute?.id ? 6 : 4,
                 strokeOpacity: route.id === selectedRoute?.id ? 0.9 : 0.7
-              // Removed strokePattern as it's not a valid property
-            }
-          });
-          
-          // Add symbols to the polyline if needed
-          const routePattern = getRoutePattern(route.id, index);
-          if (routePattern && response.routes[0] && response.routes[0].overview_path) {
-            // Create a polyline with symbols for visual distinction
-            const pathCoordinates = response.routes[0].overview_path;
-            
-            const polylineWithSymbols = new google.maps.Polyline({
-              path: pathCoordinates,
-              icons: routePattern,
-              map: map,
-              strokeColor: getRouteColor(route.id),
-              strokeWeight: 0, // Make the line itself invisible
-              strokeOpacity: 0
+              }
             });
             
-            // Store this polyline for later cleanup
-            setMarkers(prev => [...prev, polylineWithSymbols]);
+            const routePattern = getRoutePattern(route.id, index);
+            if (routePattern && response.routes[0] && response.routes[0].overview_path) {
+              const pathCoordinates = response.routes[0].overview_path;
+              
+              const polylineWithSymbols = new google.maps.Polyline({
+                path: pathCoordinates,
+                icons: routePattern,
+                map: map,
+                strokeColor: getRouteColor(route.id),
+                strokeWeight: 0,
+                strokeOpacity: 0
+              });
+              
+              setMarkers(prev => [...prev, polylineWithSymbols]);
+            }
+            
+            renderers.push(renderer);
+            
+            if (response.routes[0] && response.routes[0].bounds) {
+              bounds.union(response.routes[0].bounds);
+            }
+            
+            resolve();
+          } else {
+            console.error('Directions request failed due to', status);
+            reject(status);
           }
-          
-          renderers.push(renderer);
-          
-          // Extend bounds
-          if (response.routes[0] && response.routes[0].bounds) {
-            bounds.union(response.routes[0].bounds);
-          }
-          
-          resolve();
-        } else {
-          console.error('Directions request failed due to', status);
-          reject(status);
-        }
+        });
       });
     });
-  });
-  
-  // Process all route promises
+  };
+
   Promise.all(routePromises).then(() => {
-    // Fit bounds to include all routes
     map!.fitBounds(bounds);
     
-    // Create comparison legend
     createComparisonLegend(routes);
-    
   }).catch(error => {
     console.error('Error drawing routes:', error);
     toast({
@@ -476,22 +437,17 @@ const Map: React.FC<MapProps> = ({
       duration: 3000,
     });
   });
-};
 
-  // Helper function to generate different waypoints for each route type
   const generateWaypointsForRouteType = (start: Location, end: Location, routeType: string): google.maps.DirectionsWaypoint[] => {
-    // Calculate distance to determine waypoint offset
     const distance = google.maps.geometry.spherical.computeDistanceBetween(
       new google.maps.LatLng(start.lat, start.lng),
       new google.maps.LatLng(end.lat, end.lng)
     );
     
-    const offset = distance * 0.00001; // Scale the offset based on distance
+    const offset = distance * 0.00001;
     
-    // Generate different waypoints for different route types
     switch (routeType) {
       case 'eco-route':
-        // Eco route takes a slight detour to the south
         return [
           {
             location: new google.maps.LatLng(
@@ -503,11 +459,9 @@ const Map: React.FC<MapProps> = ({
         ];
         
       case 'fast-route':
-        // Fast route is most direct - no waypoints
         return [];
         
       case 'balanced-route':
-        // Balanced route takes a slight detour to the north
         return [
           {
             location: new google.maps.LatLng(
@@ -523,64 +477,59 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Get route color based on route type
   const getRouteColor = (routeType: string): string => {
     switch (routeType) {
       case 'eco-route':
-        return '#2e7d32'; // green for eco route
+        return '#2e7d32';
       case 'fast-route':
-        return '#ef4444'; // red for fast route
+        return '#ef4444';
       case 'balanced-route':
-        return '#8b5cf6'; // purple for balanced route
+        return '#8b5cf6';
       default:
-        return '#3b82f6'; // blue for any other route
+        return '#3b82f6';
     }
   };
 
-// Get route pattern based on route type and index - modified to not use strokePattern
-const getRoutePattern = (routeType: string, index: number): google.maps.IconSequence[] | undefined => {
-  // For fast route, we'll add symbols along the path instead of using strokePattern
-  if (routeType === 'fast-route') {
-    return [
-      {
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 3,
-          fillOpacity: 0,
-          strokeWeight: 1,
-          strokeColor: '#ef4444',
-        },
-        offset: '0%',
-        repeat: '20px'
-      }
-    ];
-  } else if (routeType === 'balanced-route') {
-    return [
-      {
-        icon: {
-          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          scale: 3,
-          fillOpacity: 0,
-          strokeWeight: 2,
-          strokeColor: '#8b5cf6',
-        },
-        offset: '50%',
-        repeat: '100px'
-      }
-    ];
-  }
-  
-  return undefined;
-};
+  const getRoutePattern = (routeType: string, index: number): google.maps.IconSequence[] | undefined => {
+    if (routeType === 'fast-route') {
+      return [
+        {
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 3,
+            fillOpacity: 0,
+            strokeWeight: 1,
+            strokeColor: '#ef4444',
+          },
+          offset: '0%',
+          repeat: '20px'
+        }
+      ];
+    } else if (routeType === 'balanced-route') {
+      return [
+        {
+          icon: {
+            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 3,
+            fillOpacity: 0,
+            strokeWeight: 2,
+            strokeColor: '#8b5cf6',
+          },
+          offset: '50%',
+          repeat: '100px'
+        }
+      ];
+    }
+    
+    return undefined;
+  };
 
-  // Add route markers for additional information
   const addRouteMarkers = (route: google.maps.DirectionsRoute, routeOption: RouteOption) => {
     if (!map) return;
     
     if (route.legs.length > 0) {
       const leg = route.legs[0];
       
-      // Add start marker with info
       const startMarker = document.createElement('div');
       startMarker.className = 'flex items-center bg-eco text-white px-2 py-1 rounded-md text-xs shadow-md';
       startMarker.textContent = 'Start';
@@ -612,7 +561,6 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
         startInfoWindow.open(map, startMarkerObj);
       });
       
-      // Add end marker with info
       const endMarker = document.createElement('div');
       endMarker.className = 'flex items-center bg-energy-high text-white px-2 py-1 rounded-md text-xs shadow-md';
       endMarker.textContent = 'Destination';
@@ -648,7 +596,6 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
       
       setMarkers(prev => [...prev, startMarkerObj, endMarkerObj]);
       
-      // Add route info in the middle
       if (leg.steps.length > 0) {
         const midIndex = Math.floor(leg.steps.length / 2);
         if (midIndex < leg.steps.length) {
@@ -669,14 +616,12 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
           
           infoWindow.open(map);
           
-          // Close info window after 5 seconds
           setTimeout(() => {
             infoWindow.close();
           }, 5000);
         }
       }
       
-      // Add charging stops if needed
       if (routeOption.chargingStops > 0) {
         const stopsToPlace = Math.min(routeOption.chargingStops, 3);
         
@@ -720,7 +665,6 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
     }
   };
 
-  // Get route label for display
   const getRouteLabel = (routeType: string): string => {
     switch (routeType) {
       case 'eco-route':
@@ -734,15 +678,12 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
     }
   };
 
-  // Create legend for route comparison
   const createComparisonLegend = (routes: RouteOption[]) => {
-    // Remove existing legend if any
     const existingLegend = document.getElementById('route-legend');
     if (existingLegend && existingLegend.parentNode) {
       existingLegend.parentNode.removeChild(existingLegend);
     }
     
-    // Create new legend
     const legend = document.createElement('div');
     legend.id = 'route-legend';
     legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200 animate-fade-in';
@@ -787,22 +728,18 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
       legend.appendChild(item);
     });
     
-    // Add to map container
     const mapContainer = mapContainerRef.current;
     if (mapContainer) {
       mapContainer.appendChild(legend);
     }
   };
 
-  // Create legend for a single route
   const createSingleRouteLegend = (route: RouteOption) => {
-    // Remove existing legend if any
     const existingLegend = document.getElementById('route-legend');
     if (existingLegend && existingLegend.parentNode) {
       existingLegend.parentNode.removeChild(existingLegend);
     }
     
-    // Create new legend
     const legend = document.createElement('div');
     legend.id = 'route-legend';
     legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200 animate-fade-in';
@@ -846,7 +783,6 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
     
     legend.appendChild(details);
     
-    // Add to map container
     const mapContainer = mapContainerRef.current;
     if (mapContainer) {
       mapContainer.appendChild(legend);
@@ -892,7 +828,6 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
     setActiveNavigation(true);
     setShowCompareRoutes(false);
     
-    // Redraw the route to add navigation markers
     drawRoute(selectedRoute);
     
     toast({
@@ -919,4 +854,53 @@ const getRoutePattern = (routeType: string, index: number): google.maps.IconSequ
       
       {!isLoading && (
         <div className="absolute bottom-4 left-4 max-w-xs">
-          <Alert className="bg-background/80 backdrop-
+          <Alert className="bg-background/80 backdrop-blur-sm shadow-md">
+            <div className="flex flex-col space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-1">
+                  <MapPin className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Map Controls</span>
+                </div>
+                <Button variant="ghost" size="icon" onClick={resetMap} title="Reset Map View">
+                  <RotateCcw className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="flex items-center space-x-2 py-1">
+                <Switch 
+                  id="compare-routes"
+                  checked={showCompareRoutes}
+                  onCheckedChange={handleCompareToggle}
+                />
+                <Label htmlFor="compare-routes" className="text-xs">Compare Routes</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 py-1">
+                <Switch 
+                  id="show-stations"
+                  checked={showStations}
+                  onCheckedChange={handleStationsToggle}
+                />
+                <Label htmlFor="show-stations" className="text-xs">Show Charging Stations</Label>
+              </div>
+              
+              {selectedRoute && (
+                <Button 
+                  variant={activeNavigation ? "default" : "outline"} 
+                  size="sm" 
+                  className="w-full mt-1 flex items-center space-x-1"
+                  onClick={startNavigation}
+                >
+                  <Navigation className="h-4 w-4" />
+                  <span>{activeNavigation ? "Navigating" : "Start Navigation"}</span>
+                </Button>
+              )}
+            </div>
+          </Alert>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Map;
