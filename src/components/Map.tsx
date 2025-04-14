@@ -419,45 +419,64 @@ const Map: React.FC<MapProps> = ({
               polylineOptions: {
                 strokeColor: getRouteColor(route.id),
                 strokeWeight: route.id === selectedRoute?.id ? 6 : 4,
-                strokeOpacity: route.id === selectedRoute?.id ? 0.9 : 0.7,
-                strokePattern: getRoutePattern(route.id, index)
-              }
+                strokeOpacity: route.id === selectedRoute?.id ? 0.9 : 0.7
+              // Removed strokePattern as it's not a valid property
+            }
+          });
+          
+          // Add symbols to the polyline if needed
+          const routePattern = getRoutePattern(route.id, index);
+          if (routePattern && response.routes[0] && response.routes[0].overview_path) {
+            // Create a polyline with symbols for visual distinction
+            const pathCoordinates = response.routes[0].overview_path;
+            
+            const polylineWithSymbols = new google.maps.Polyline({
+              path: pathCoordinates,
+              icons: routePattern,
+              map: map,
+              strokeColor: getRouteColor(route.id),
+              strokeWeight: 0, // Make the line itself invisible
+              strokeOpacity: 0
             });
             
-            renderers.push(renderer);
-            
-            // Extend bounds
-            if (response.routes[0] && response.routes[0].bounds) {
-              bounds.union(response.routes[0].bounds);
-            }
-            
-            resolve();
-          } else {
-            console.error('Directions request failed due to', status);
-            reject(status);
+            // Store this polyline for later cleanup
+            setMarkers(prev => [...prev, polylineWithSymbols]);
           }
-        });
+          
+          renderers.push(renderer);
+          
+          // Extend bounds
+          if (response.routes[0] && response.routes[0].bounds) {
+            bounds.union(response.routes[0].bounds);
+          }
+          
+          resolve();
+        } else {
+          console.error('Directions request failed due to', status);
+          reject(status);
+        }
       });
     });
+  });
+  
+  // Process all route promises
+  Promise.all(routePromises).then(() => {
+    // Fit bounds to include all routes
+    map!.fitBounds(bounds);
     
-    // Process all route promises
-    Promise.all(routePromises).then(() => {
-      // Fit bounds to include all routes
-      map!.fitBounds(bounds);
-      
-      // Create comparison legend
-      createComparisonLegend(routes);
-      
-    }).catch(error => {
-      console.error('Error drawing routes:', error);
-      toast({
-        title: "Route Error",
-        description: "Could not calculate all routes. Please try again.",
-        variant: "destructive",
-        duration: 3000,
-      });
+    // Create comparison legend
+    createComparisonLegend(routes);
+    
+  }).catch(error => {
+    console.error('Error drawing routes:', error);
+    toast({
+      title: "Route Error",
+      description: "Could not calculate all routes. Please try again.",
+      variant: "destructive",
+      duration: 3000,
     });
-  };
+  });
+};
 
   // Helper function to generate different waypoints for each route type
   const generateWaypointsForRouteType = (start: Location, end: Location, routeType: string): google.maps.DirectionsWaypoint[] => {
@@ -518,40 +537,41 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  // Get route pattern based on route type and index
-  const getRoutePattern = (routeType: string, index: number): google.maps.IconSequence[] | undefined => {
-    if (routeType === 'fast-route') {
-      return [
-        {
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 3,
-            fillOpacity: 0,
-            strokeWeight: 1,
-            strokeColor: '#ef4444',
-          },
-          offset: '0%',
-          repeat: '20px'
-        }
-      ];
-    } else if (routeType === 'balanced-route') {
-      return [
-        {
-          icon: {
-            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-            scale: 3,
-            fillOpacity: 0,
-            strokeWeight: 2,
-            strokeColor: '#8b5cf6',
-          },
-          offset: '50%',
-          repeat: '100px'
-        }
-      ];
-    }
-    
-    return undefined;
-  };
+// Get route pattern based on route type and index - modified to not use strokePattern
+const getRoutePattern = (routeType: string, index: number): google.maps.IconSequence[] | undefined => {
+  // For fast route, we'll add symbols along the path instead of using strokePattern
+  if (routeType === 'fast-route') {
+    return [
+      {
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 3,
+          fillOpacity: 0,
+          strokeWeight: 1,
+          strokeColor: '#ef4444',
+        },
+        offset: '0%',
+        repeat: '20px'
+      }
+    ];
+  } else if (routeType === 'balanced-route') {
+    return [
+      {
+        icon: {
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          scale: 3,
+          fillOpacity: 0,
+          strokeWeight: 2,
+          strokeColor: '#8b5cf6',
+        },
+        offset: '50%',
+        repeat: '100px'
+      }
+    ];
+  }
+  
+  return undefined;
+};
 
   // Add route markers for additional information
   const addRouteMarkers = (route: google.maps.DirectionsRoute, routeOption: RouteOption) => {
@@ -899,141 +919,4 @@ const Map: React.FC<MapProps> = ({
       
       {!isLoading && (
         <div className="absolute bottom-4 left-4 max-w-xs">
-          <Alert className="bg-background/80 backdrop-blur-sm">
-            <Info className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              Green Drive interactive map with real-time data.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-      
-      {/* Map controls */}
-      {!isLoading && (
-        <div className="absolute top-4 right-4 flex space-x-2">
-          <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm" onClick={resetMap}>
-            <RotateCcw className="h-4 w-4 mr-1" />
-            <span className="text-xs">Reset View</span>
-          </Button>
-        </div>
-      )}
-      
-      {/* Map options */}
-      {!isLoading && (
-        <div className="absolute top-4 left-4 p-2 bg-background/80 backdrop-blur-sm rounded-md">
-          <div className="flex items-center space-x-2 mb-2">
-            <Switch 
-              id="compare-routes" 
-              checked={showCompareRoutes} 
-              onCheckedChange={handleCompareToggle} 
-            />
-            <Label htmlFor="compare-routes" className="text-xs flex items-center">
-              <Layers className="h-3 w-3 mr-1" />
-              Compare Routes
-            </Label>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch 
-              id="show-stations" 
-              checked={showStations} 
-              onCheckedChange={handleStationsToggle} 
-            />
-            <Label htmlFor="show-stations" className="text-xs flex items-center">
-              <MapPin className="h-3 w-3 mr-1" />
-              Show Stations
-            </Label>
-          </div>
-        </div>
-      )}
-      
-      {/* Map action buttons */}
-      {!isLoading && (
-        <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={`${activeNavigation ? 'bg-eco text-white' : 'bg-eco/80 text-white backdrop-blur-sm hover:bg-eco'}`}
-            onClick={startNavigation}
-            disabled={!selectedRoute}
-          >
-            <Navigation className="h-4 w-4 mr-1" />
-            <span className="text-xs">{activeNavigation ? 'Navigating...' : 'Navigate'}</span>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="bg-background/80 backdrop-blur-sm"
-            onClick={() => {
-              if (map && userLocation) {
-                map.setCenter(userLocation);
-                map.setZoom(14);
-              } else {
-                getUserLocation();
-              }
-            }}
-          >
-            <LocateFixed className="h-4 w-4 mr-1" />
-            <span className="text-xs">Current Location</span>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className={`bg-purple-500/10 hover:bg-purple-500/20 text-purple-500`}
-            onClick={() => {
-              if (allRoutes.length > 0) {
-                setShowCompareRoutes(true);
-              } else {
-                toast({
-                  title: "No Routes Available",
-                  description: "Find a route first to enable comparison",
-                  variant: "destructive",
-                  duration: 3000,
-                });
-              }
-            }}
-          >
-            <Route className="h-4 w-4 mr-1" />
-            <span className="text-xs">All Routes</span>
-          </Button>
-        </div>
-      )}
-      
-      {/* Navigation status */}
-      {activeNavigation && selectedRoute && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/90 backdrop-blur-sm rounded-md p-2 shadow-md border border-eco animate-fade-in">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <Navigation className="h-4 w-4 text-eco mr-1" />
-              <span className="text-sm font-medium">{getRouteLabel(selectedRoute.id)}</span>
-            </div>
-            <div className="text-xs">
-              <span className="font-medium">{selectedRoute.distance} km</span>
-              <span className="mx-1">•</span>
-              <span>{selectedRoute.duration} min</span>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-6 p-0 px-2"
-              onClick={() => {
-                setActiveNavigation(false);
-                toast({
-                  title: "Navigation Ended",
-                  description: "Turn-by-turn navigation stopped",
-                  duration: 2000,
-                });
-              }}
-            >
-              <span className="text-xs">End</span>
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default Map;
+          <Alert className="bg-background/80 backdrop-
