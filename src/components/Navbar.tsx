@@ -69,7 +69,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onTabChange }) => {
       <div className="container flex justify-between items-center py-3">
         <div className="flex items-center space-x-2">
           <Zap className="h-6 w-6 text-eco" />
-          <h1 className="text-xl font-bold">Green Drive</h1>
+          <h1 className="text-xl font-bold">EcoRoute AI</h1>
           <span className="text-xs bg-eco/20 text-eco px-2 py-0.5 rounded-full hidden sm:inline-block">
             India
           </span>

@@ -63,7 +63,7 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				// Green Drive specific colors
+				// Eco-route specific colors
 				eco: {
 					light: '#88c488',
 					DEFAULT: '#2e7d32',
@@ -84,18 +84,6 @@ export default {
 					hilly: '#fff59d',
 					steep: '#ffab91',
 				},
-				// Additional vibrant colors for Green Drive
-				greendrive: {
-					primary: '#2e7d32',
-					secondary: '#8bc34a',
-					accent: '#00c853',
-					highlight: '#b9f6ca',
-					muted: '#e8f5e9',
-					gradient: {
-						start: '#43a047',
-						end: '#1b5e20'
-					}
-				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -144,24 +132,6 @@ export default {
 						opacity: '1',
 						transform: 'translateY(0)'
 					}
-				},
-				'grow': {
-					'0%': {
-						transform: 'scale(0.95)'
-					},
-					'100%': {
-						transform: 'scale(1)'
-					}
-				},
-				'ripple': {
-					'0%': {
-						transform: 'scale(0)',
-						opacity: '1'
-					},
-					'100%': {
-						transform: 'scale(4)',
-						opacity: '0'
-					}
 				}
 			},
 			animation: {
@@ -169,16 +139,7 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'pulse-green': 'pulse-green 2s infinite',
 				'float': 'float 3s ease-in-out infinite',
-				'fade-in': 'fade-in 0.3s ease-out',
-				'grow': 'grow 0.2s ease-out',
-				'ripple': 'ripple 0.8s ease-out'
-			},
-			gradientColorStops: {
-				'eco-gradient': ['#43a047', '#1b5e20'],
-			},
-			backgroundImage: {
-				'eco-gradient': 'linear-gradient(135deg, #43a047 0%, #1b5e20 100%)',
-				'eco-light-gradient': 'linear-gradient(135deg, #a5d6a7 0%, #43a047 100%)',
+				'fade-in': 'fade-in 0.3s ease-out'
 			}
 		}
 	},
