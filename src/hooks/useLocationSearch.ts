@@ -9,8 +9,8 @@ interface GeocodingFeature {
   place_type: string[];
 }
 
-// Store the Mapbox API key
-const MAPBOX_API_KEY = 'pk.eyJ1Ijoia2VzaGF2LXNybSIsImEiOiJjbTljYjFtOWEwZ2VmMm9xdzBoZGZqazZwIn0.l16befAq12p5KdoD2DbTcw';
+// Use environment variable for the Mapbox API key
+const MAPBOX_API_KEY = import.meta.env.VITE_MAPBOX_API_KEY || 'pk.eyJ1Ijoia2VzaGF2LXNybSIsImEiOiJjbTljYjFtOWEwZ2VmMm9xdzBoZGZqazZwIn0.l16befAq12p5KdoD2DbTcw';
 
 export const useLocationSearch = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
@@ -29,7 +29,7 @@ export const useLocationSearch = () => {
     setIsSearching(true);
     
     try {
-      // Use the hardcoded API key
+      // Use the environment variable for the API key
       const mapApiKey = MAPBOX_API_KEY;
       
       // Add India country filter for more relevant results
