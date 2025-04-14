@@ -38,7 +38,22 @@ VITE_MAPBOX_API_KEY=your_mapbox_public_token_here
 npm run dev
 ```
 
+5. Enable Location Services
+   - When prompted by your browser, allow location access
+   - Ensure your device's location services are enabled
+   - For Chrome: Settings > Privacy and Security > Site Settings > Location
+   - For Firefox: Settings > Privacy & Security > Permissions > Location
+   - For Safari: Preferences > Websites > Location
+
 ## Troubleshooting
+
+### Location Detection Issues
+- If your current location isn't detected:
+  - Check that you've allowed location access in your browser
+  - Try using a different browser
+  - For local development, some browsers restrict geolocation on non-HTTPS connections
+  - You may need to set up a local HTTPS server or use a tool like ngrok
+  - As a workaround, you can manually set your starting location in the app
 
 ### API Key Issues
 - Ensure your Mapbox token is a PUBLIC token
