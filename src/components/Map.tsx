@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,8 +20,6 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapProps {
   locations: Location[];
@@ -32,6 +31,8 @@ interface MapProps {
   useCurrentLocation?: boolean;
 }
 
+const GOOGLE_MAPS_API_KEY = 'AIzaSyBJ1SZvlfgcy2nTGBraa2MkS5amw_lOTM8';
+
 const Map: React.FC<MapProps> = ({ 
   locations, 
   selectedRoute, 
@@ -42,56 +43,149 @@ const Map: React.FC<MapProps> = ({
   useCurrentLocation = true
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapError, setMapError] = useState<string | null>(null);
-  const [mapApiKey, setMapApiKey] = useState<string>('');
-  const [showMapKeyInput, setShowMapKeyInput] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
   const [showCompareRoutes, setShowCompareRoutes] = useState<boolean>(false);
   const [showStations, setShowStations] = useState<boolean>(true);
   const [activeNavigation, setActiveNavigation] = useState<boolean>(false);
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [directionsService, setDirectionsService] = useState<google.maps.DirectionsService | null>(null);
+  const [directionsRenderer, setDirectionsRenderer] = useState<google.maps.DirectionsRenderer | null>(null);
+  const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const { toast } = useToast();
 
+  // Initialize Google Maps
   useEffect(() => {
-    // Check for map API key in local storage
-    const savedApiKey = localStorage.getItem('mapApiKey');
-    if (savedApiKey) {
-      setMapApiKey(savedApiKey);
-      setShowMapKeyInput(false);
-      initializeMap(savedApiKey);
+    if (!mapContainerRef.current) return;
+    
+    // Load Google Maps API script if it's not already loaded
+    if (!window.google || !window.google.maps) {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
+      script.async = true;
+      script.defer = true;
+      
+      script.onload = initMap;
+      script.onerror = () => {
+        setMapError('Failed to load Google Maps. Please check your connection and try again.');
+      };
+      
+      document.head.appendChild(script);
+    } else {
+      initMap();
     }
+    
+    return () => {
+      // Clean up markers
+      markers.forEach(marker => marker.setMap(null));
+    };
   }, []);
 
-  // Get user's current location when map is ready
-  useEffect(() => {
-    if (map.current && !userLocation && useCurrentLocation) {
+  // Initialize map
+  const initMap = () => {
+    if (!mapContainerRef.current || !window.google) return;
+    
+    try {
+      const newMap = new google.maps.Map(mapContainerRef.current, {
+        center: { lat: 28.6139, lng: 77.2090 }, // Default to Delhi, India
+        zoom: 10,
+        mapTypeControl: true,
+        streetViewControl: false,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        styles: [
+          {
+            featureType: 'road',
+            elementType: 'geometry',
+            stylers: [{ color: '#f5f5f5' }]
+          },
+          {
+            featureType: 'water',
+            elementType: 'geometry',
+            stylers: [{ color: '#e9e9e9' }]
+          },
+          {
+            featureType: 'poi.park',
+            elementType: 'geometry',
+            stylers: [{ color: '#e0f2e0' }]
+          }
+        ]
+      });
+      
+      setMap(newMap);
+      
+      // Initialize directions service and renderer
+      const newDirectionsService = new google.maps.DirectionsService();
+      const newDirectionsRenderer = new google.maps.DirectionsRenderer({
+        map: newMap,
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: '#2e7d32', // eco green
+          strokeWeight: 6,
+          strokeOpacity: 0.8
+        }
+      });
+      
+      setDirectionsService(newDirectionsService);
+      setDirectionsRenderer(newDirectionsRenderer);
+      
+      // Get user's current location if needed
+      if (useCurrentLocation) {
+        getUserLocation();
+      }
+      
+      toast({
+        title: "Map Loaded",
+        description: "Google Maps has been loaded successfully.",
+        duration: 3000,
+      });
+      
+    } catch (error) {
+      console.error('Error initializing map:', error);
+      setMapError('Could not initialize Google Maps. Please refresh and try again.');
+    }
+  };
+
+  // Handle getting user's current location
+  const getUserLocation = () => {
+    if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { longitude, latitude } = position.coords;
-          setUserLocation([longitude, latitude]);
-          map.current?.flyTo({
-            center: [longitude, latitude],
-            zoom: 12,
-            essential: true
-          });
+          const { latitude, longitude } = position.coords;
+          const userLoc = { lat: latitude, lng: longitude };
           
-          // Add user location marker
-          const userMarker = new mapboxgl.Marker({ color: '#10b981' })
-            .setLngLat([longitude, latitude])
-            .addTo(map.current);
+          setUserLocation(userLoc);
+          
+          if (map) {
+            map.setCenter(userLoc);
+            map.setZoom(13);
             
-          markersRef.current.push(userMarker);
-          
-          if (onLocationUpdate) {
-            onLocationUpdate({
-              id: 'current',
-              name: 'Current Location',
-              lat: latitude,
-              lng: longitude,
-              type: 'current'
+            // Add marker for user location
+            const marker = new google.maps.Marker({
+              position: userLoc,
+              map: map,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: '#10b981',
+                fillOpacity: 0.8,
+                strokeWeight: 2,
+                strokeColor: '#ffffff'
+              },
+              title: 'Your Location'
             });
+            
+            setMarkers(prev => [...prev, marker]);
+            
+            if (onLocationUpdate) {
+              onLocationUpdate({
+                id: 'current',
+                name: 'Current Location',
+                lat: latitude,
+                lng: longitude,
+                type: 'current'
+              });
+            }
           }
           
           toast({
@@ -105,87 +199,310 @@ const Map: React.FC<MapProps> = ({
           toast({
             title: "Location Error",
             description: "Couldn't get your location. Using Delhi as default.",
+            variant: "destructive",
             duration: 3000,
-          });
-          
-          // Default to Delhi, India
-          setUserLocation([77.2090, 28.6139]);
-          map.current?.flyTo({
-            center: [77.2090, 28.6139],
-            zoom: 10,
-            essential: true
           });
         }
       );
+    } else {
+      toast({
+        title: "Geolocation Unsupported",
+        description: "Your browser doesn't support geolocation.",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
-  }, [map.current, userLocation, onLocationUpdate, toast, useCurrentLocation]);
+  };
 
   // Update markers when locations or chargingStations change
   useEffect(() => {
-    if (map.current) {
-      // Clear existing markers
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
+    if (!map) return;
+    
+    // Clear existing markers
+    markers.forEach(marker => marker.setMap(null));
+    const newMarkers: google.maps.Marker[] = [];
+    
+    // Add markers for locations
+    locations.forEach(location => {
+      let iconColor = '#10b981'; // Default green color
       
-      // Add markers for locations
-      locations.forEach(location => {
-        let color = '#10b981'; // Default green color
-        
-        if (location.type === 'end') color = '#f43f5e';
-        else if (location.type === 'waypoint') color = '#8b5cf6';
-        else if (location.type === 'charging') color = '#3b82f6';
-        
-        const marker = new mapboxgl.Marker({ color })
-          .setLngLat([location.lng, location.lat])
-          .setPopup(new mapboxgl.Popup().setHTML(`<h3>${location.name}</h3><p>${location.type}</p>`))
-          .addTo(map.current!);
-          
-        markersRef.current.push(marker);
+      if (location.type === 'end') iconColor = '#f43f5e';
+      else if (location.type === 'waypoint') iconColor = '#8b5cf6';
+      else if (location.type === 'charging') iconColor = '#3b82f6';
+      
+      const marker = new google.maps.Marker({
+        position: { lat: location.lat, lng: location.lng },
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 8,
+          fillColor: iconColor,
+          fillOpacity: 0.8,
+          strokeWeight: 2,
+          strokeColor: '#ffffff'
+        },
+        title: location.name
       });
       
-      // Add markers for charging stations if they should be shown
-      if (showStations) {
-        chargingStations.forEach(station => {
-          const color = station.available ? '#10b981' : '#ef4444';
-          
-          const marker = new mapboxgl.Marker({ color })
-            .setLngLat([station.lng, station.lat])
-            .setPopup(
-              new mapboxgl.Popup().setHTML(
-                `<div style="padding: 8px;">
-                  <h3 style="font-weight: bold; margin-bottom: 5px;">${station.name}</h3>
-                  <p style="margin: 2px 0;"><strong>Available:</strong> ${station.available ? 'Yes' : 'No'}</p>
-                  <p style="margin: 2px 0;"><strong>Power:</strong> ${station.powerKw} kW</p>
-                  <p style="margin: 2px 0;"><strong>Pricing:</strong> ${station.pricing}</p>
-                  <p style="margin: 2px 0;"><strong>Renewable:</strong> ${station.renewable ? 'Yes' : 'No'}</p>
-                  ${station.amenities.length > 0 ? 
-                    `<p style="margin: 2px 0;"><strong>Amenities:</strong> ${station.amenities.join(', ')}</p>` 
-                    : ''
-                  }
-                </div>`
-              )
-            )
-            .addTo(map.current!);
-            
-          markersRef.current.push(marker);
+      // Add info window
+      const infoWindow = new google.maps.InfoWindow({
+        content: `<div><h3>${location.name}</h3><p>${location.type}</p></div>`
+      });
+      
+      marker.addListener('click', () => {
+        infoWindow.open(map, marker);
+      });
+      
+      newMarkers.push(marker);
+    });
+    
+    // Add markers for charging stations if they should be shown
+    if (showStations) {
+      chargingStations.forEach(station => {
+        const iconColor = station.available ? '#10b981' : '#ef4444';
+        
+        const marker = new google.maps.Marker({
+          position: { lat: station.lat, lng: station.lng },
+          map: map,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 7,
+            fillColor: iconColor,
+            fillOpacity: 0.8,
+            strokeWeight: 2,
+            strokeColor: '#ffffff'
+          },
+          title: station.name
+        });
+        
+        // Add info window for the station
+        const infoContent = `
+          <div style="padding: 8px;">
+            <h3 style="font-weight: bold; margin-bottom: 5px;">${station.name}</h3>
+            <p style="margin: 2px 0;"><strong>Available:</strong> ${station.available ? 'Yes' : 'No'}</p>
+            <p style="margin: 2px 0;"><strong>Power:</strong> ${station.powerKw} kW</p>
+            <p style="margin: 2px 0;"><strong>Pricing:</strong> ${station.pricing}</p>
+            <p style="margin: 2px 0;"><strong>Renewable:</strong> ${station.renewable ? 'Yes' : 'No'}</p>
+            ${station.amenities.length > 0 ? 
+              `<p style="margin: 2px 0;"><strong>Amenities:</strong> ${station.amenities.join(', ')}</p>` 
+              : ''
+            }
+          </div>
+        `;
+        
+        const infoWindow = new google.maps.InfoWindow({
+          content: infoContent
+        });
+        
+        marker.addListener('click', () => {
+          infoWindow.open(map, marker);
+        });
+        
+        newMarkers.push(marker);
+      });
+    }
+    
+    setMarkers(newMarkers);
+    
+    // Draw routes
+    if (showCompareRoutes && allRoutes.length > 0) {
+      // Draw all routes for comparison
+      drawAllRoutes(allRoutes);
+    } else if (selectedRoute && locations.length >= 2) {
+      // Draw just the selected route
+      drawRoute(selectedRoute);
+    }
+  }, [map, locations, chargingStations, selectedRoute, allRoutes, showCompareRoutes, showStations]);
+
+  // Draw a single route
+  const drawRoute = (route: RouteOption) => {
+    if (!map || !directionsService || !directionsRenderer || locations.length < 2) return;
+    
+    // Find start and end locations
+    const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
+    const end = locations.find(loc => loc.type === 'end');
+    
+    if (!start || !end) return;
+    
+    // Generate waypoints based on route type to ensure a unique path visualization
+    const waypoints = generateWaypointsForRouteType(start, end, route.id);
+    
+    directionsService.route({
+      origin: { lat: start.lat, lng: start.lng },
+      destination: { lat: end.lat, lng: end.lng },
+      waypoints: waypoints,
+      travelMode: google.maps.TravelMode.DRIVING,
+      optimizeWaypoints: false
+    }, (response, status) => {
+      if (status === google.maps.DirectionsStatus.OK && response) {
+        // Set the route color based on route type
+        directionsRenderer.setOptions({
+          polylineOptions: {
+            strokeColor: getRouteColor(route.id),
+            strokeWeight: 6,
+            strokeOpacity: 0.8
+          }
+        });
+        
+        directionsRenderer.setDirections(response);
+        
+        // Add route markers for additional information
+        if (activeNavigation && response.routes[0]) {
+          addRouteMarkers(response.routes[0], route);
+        }
+        
+        // Create route legend for the selected route
+        createSingleRouteLegend(route);
+        
+        // Fit bounds to the route
+        if (response.routes[0] && response.routes[0].bounds) {
+          map.fitBounds(response.routes[0].bounds);
+        }
+      } else {
+        console.error('Directions request failed due to', status);
+        toast({
+          title: "Route Error",
+          description: "Could not calculate route. Please try again.",
+          variant: "destructive",
+          duration: 3000,
         });
       }
-      
-      // Draw routes
-      if (showCompareRoutes && allRoutes.length > 0) {
-        // Draw all routes for comparison
-        drawAllRoutes(allRoutes);
-      } else if (selectedRoute && locations.length >= 2) {
-        // Draw just the selected route
-        drawRoute(selectedRoute);
-      }
-    }
-  }, [locations, chargingStations, selectedRoute, allRoutes, showCompareRoutes, showStations]);
+    });
+  };
 
+  // Draw multiple routes for comparison
+  const drawAllRoutes = (routes: RouteOption[]) => {
+    if (!map || !directionsService || locations.length < 2) return;
+    
+    // Find start and end locations
+    const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
+    const end = locations.find(loc => loc.type === 'end');
+    
+    if (!start || !end) return;
+    
+    // Clear existing directionsRenderer
+    if (directionsRenderer) {
+      directionsRenderer.setMap(null);
+    }
+    
+    // Create array to store all rendered directions
+    const renderers: google.maps.DirectionsRenderer[] = [];
+    
+    // Create a boundary for fitting all routes
+    const bounds = new google.maps.LatLngBounds();
+    
+    // Create promises for all routes
+    const routePromises = routes.map((route, index) => {
+      return new Promise<void>((resolve, reject) => {
+        const waypoints = generateWaypointsForRouteType(start!, end!, route.id);
+        
+        directionsService!.route({
+          origin: { lat: start!.lat, lng: start!.lng },
+          destination: { lat: end!.lat, lng: end!.lng },
+          waypoints: waypoints,
+          travelMode: google.maps.TravelMode.DRIVING,
+          optimizeWaypoints: false
+        }, (response, status) => {
+          if (status === google.maps.DirectionsStatus.OK && response) {
+            // Create a new directionsRenderer for each route
+            const renderer = new google.maps.DirectionsRenderer({
+              map: map,
+              directions: response,
+              routeIndex: 0,
+              suppressMarkers: true,
+              polylineOptions: {
+                strokeColor: getRouteColor(route.id),
+                strokeWeight: route.id === selectedRoute?.id ? 6 : 4,
+                strokeOpacity: route.id === selectedRoute?.id ? 0.9 : 0.7,
+                strokePattern: getRoutePattern(route.id, index)
+              }
+            });
+            
+            renderers.push(renderer);
+            
+            // Extend bounds
+            if (response.routes[0] && response.routes[0].bounds) {
+              bounds.union(response.routes[0].bounds);
+            }
+            
+            resolve();
+          } else {
+            console.error('Directions request failed due to', status);
+            reject(status);
+          }
+        });
+      });
+    });
+    
+    // Process all route promises
+    Promise.all(routePromises).then(() => {
+      // Fit bounds to include all routes
+      map!.fitBounds(bounds);
+      
+      // Create comparison legend
+      createComparisonLegend(routes);
+      
+    }).catch(error => {
+      console.error('Error drawing routes:', error);
+      toast({
+        title: "Route Error",
+        description: "Could not calculate all routes. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    });
+  };
+
+  // Helper function to generate different waypoints for each route type
+  const generateWaypointsForRouteType = (start: Location, end: Location, routeType: string): google.maps.DirectionsWaypoint[] => {
+    // Calculate distance to determine waypoint offset
+    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+      new google.maps.LatLng(start.lat, start.lng),
+      new google.maps.LatLng(end.lat, end.lng)
+    );
+    
+    const offset = distance * 0.00001; // Scale the offset based on distance
+    
+    // Generate different waypoints for different route types
+    switch (routeType) {
+      case 'eco-route':
+        // Eco route takes a slight detour to the south
+        return [
+          {
+            location: new google.maps.LatLng(
+              (start.lat + end.lat) / 2 - offset * 0.8,
+              (start.lng + end.lng) / 2 - offset * 0.5
+            ),
+            stopover: false
+          }
+        ];
+        
+      case 'fast-route':
+        // Fast route is most direct - no waypoints
+        return [];
+        
+      case 'balanced-route':
+        // Balanced route takes a slight detour to the north
+        return [
+          {
+            location: new google.maps.LatLng(
+              (start.lat + end.lat) / 2 + offset * 0.8,
+              (start.lng + end.lng) / 2 + offset * 0.5
+            ),
+            stopover: false
+          }
+        ];
+        
+      default:
+        return [];
+    }
+  };
+
+  // Get route color based on route type
   const getRouteColor = (routeType: string): string => {
     switch (routeType) {
       case 'eco-route':
-        return '#10b981'; // green for eco route
+        return '#2e7d32'; // green for eco route
       case 'fast-route':
         return '#ef4444'; // red for fast route
       case 'balanced-route':
@@ -195,6 +512,189 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
+  // Get route pattern based on route type and index
+  const getRoutePattern = (routeType: string, index: number): google.maps.IconSequence[] | undefined => {
+    if (routeType === 'fast-route') {
+      return [
+        {
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 3,
+            fillOpacity: 0,
+            strokeWeight: 1,
+            strokeColor: '#ef4444',
+          },
+          offset: '0%',
+          repeat: '20px'
+        }
+      ];
+    } else if (routeType === 'balanced-route') {
+      return [
+        {
+          icon: {
+            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+            scale: 3,
+            fillOpacity: 0,
+            strokeWeight: 2,
+            strokeColor: '#8b5cf6',
+          },
+          offset: '50%',
+          repeat: '100px'
+        }
+      ];
+    }
+    
+    return undefined;
+  };
+
+  // Add route markers for additional information
+  const addRouteMarkers = (route: google.maps.DirectionsRoute, routeOption: RouteOption) => {
+    if (!map) return;
+    
+    if (route.legs.length > 0) {
+      const leg = route.legs[0];
+      
+      // Add start marker with info
+      const startMarker = document.createElement('div');
+      startMarker.className = 'flex items-center bg-eco text-white px-2 py-1 rounded-md text-xs shadow-md';
+      startMarker.textContent = 'Start';
+      
+      const startInfoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 5px;">
+            <h3 style="font-weight: bold;">Start</h3>
+            <p>${leg.start_address}</p>
+          </div>
+        `
+      });
+      
+      const startMarkerObj = new google.maps.Marker({
+        position: leg.start_location,
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: '#10b981',
+          fillOpacity: 0.8,
+          strokeWeight: 2,
+          strokeColor: '#ffffff'
+        },
+        title: 'Start'
+      });
+      
+      startMarkerObj.addListener('click', () => {
+        startInfoWindow.open(map, startMarkerObj);
+      });
+      
+      // Add end marker with info
+      const endMarker = document.createElement('div');
+      endMarker.className = 'flex items-center bg-energy-high text-white px-2 py-1 rounded-md text-xs shadow-md';
+      endMarker.textContent = 'Destination';
+      
+      const endInfoWindow = new google.maps.InfoWindow({
+        content: `
+          <div style="padding: 5px;">
+            <h3 style="font-weight: bold;">Destination</h3>
+            <p>${leg.end_address}</p>
+            <p>Distance: ${leg.distance?.text}</p>
+            <p>Duration: ${leg.duration?.text}</p>
+          </div>
+        `
+      });
+      
+      const endMarkerObj = new google.maps.Marker({
+        position: leg.end_location,
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: '#f43f5e',
+          fillOpacity: 0.8,
+          strokeWeight: 2,
+          strokeColor: '#ffffff'
+        },
+        title: 'Destination'
+      });
+      
+      endMarkerObj.addListener('click', () => {
+        endInfoWindow.open(map, endMarkerObj);
+      });
+      
+      setMarkers(prev => [...prev, startMarkerObj, endMarkerObj]);
+      
+      // Add route info in the middle
+      if (leg.steps.length > 0) {
+        const midIndex = Math.floor(leg.steps.length / 2);
+        if (midIndex < leg.steps.length) {
+          const midStep = leg.steps[midIndex];
+          
+          const infoWindow = new google.maps.InfoWindow({
+            content: `
+              <div style="padding: 5px; min-width: 150px;">
+                <h3 style="font-weight: bold; color: ${getRouteColor(routeOption.id)};">${getRouteLabel(routeOption.id)}</h3>
+                <p>Distance: ${routeOption.distance} km</p>
+                <p>Duration: ${routeOption.duration} min</p>
+                <p>Energy: ${routeOption.energyUsage.toFixed(1)} kWh</p>
+                <p>Eco Score: ${routeOption.ecoScore}/100</p>
+              </div>
+            `,
+            position: midStep.start_location
+          });
+          
+          infoWindow.open(map);
+          
+          // Close info window after 5 seconds
+          setTimeout(() => {
+            infoWindow.close();
+          }, 5000);
+        }
+      }
+      
+      // Add charging stops if needed
+      if (routeOption.chargingStops > 0) {
+        const stopsToPlace = Math.min(routeOption.chargingStops, 3);
+        
+        for (let i = 1; i <= stopsToPlace; i++) {
+          const index = Math.floor((leg.steps.length / (stopsToPlace + 1)) * i);
+          
+          if (index < leg.steps.length) {
+            const stopLocation = leg.steps[index].start_location;
+            
+            const chargingMarker = new google.maps.Marker({
+              position: stopLocation,
+              map: map,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#3b82f6',
+                fillOpacity: 0.8,
+                strokeWeight: 2,
+                strokeColor: '#ffffff'
+              },
+              title: 'Charging Stop'
+            });
+            
+            const chargingInfoWindow = new google.maps.InfoWindow({
+              content: `
+                <div style="padding: 5px;">
+                  <h3 style="font-weight: bold;">Charging Stop</h3>
+                  <p>Approximate location</p>
+                </div>
+              `
+            });
+            
+            chargingMarker.addListener('click', () => {
+              chargingInfoWindow.open(map, chargingMarker);
+            });
+            
+            setMarkers(prev => [...prev, chargingMarker]);
+          }
+        }
+      }
+    }
+  };
+
+  // Get route label for display
   const getRouteLabel = (routeType: string): string => {
     switch (routeType) {
       case 'eco-route':
@@ -208,190 +708,8 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  const drawAllRoutes = async (routes: RouteOption[]) => {
-    if (!map.current || locations.length < 2) return;
-    
-    try {
-      // Remove existing route layers
-      for (let i = 0; i < 5; i++) {
-        if (map.current?.getLayer(`route-${i}`)) {
-          map.current.removeLayer(`route-${i}`);
-        }
-        
-        if (map.current?.getSource(`route-${i}`)) {
-          map.current.removeSource(`route-${i}`);
-        }
-      }
-      
-      // Find start and end locations
-      const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
-      const end = locations.find(loc => loc.type === 'end');
-      
-      if (!start || !end) return;
-      
-      // Create different waypoints for each route type to ensure distinct paths
-      const bounds = new mapboxgl.LngLatBounds();
-      
-      for (let i = 0; i < routes.length; i++) {
-        const route = routes[i];
-        const color = getRouteColor(route.id);
-        
-        // Create slightly different waypoints for each route type to ensure they look different
-        // This simulates what a real routing service would return for different route types
-        const waypoints = generateWaypointsForRouteType(start, end, route.id);
-        
-        // Use Mapbox Directions API to get route
-        const query = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${mapApiKey}`
-        );
-        
-        if (!query.ok) {
-          throw new Error('Network response was not ok');
-        }
-        
-        const json = await query.json();
-        
-        if (json.code !== 'Ok') {
-          throw new Error(json.message || 'Could not calculate route');
-        }
-        
-        // Add route to map with offset for visualization
-        const routeGeometry = offsetRouteGeometry(json.routes[0].geometry, i);
-        
-        map.current.addSource(`route-${i}`, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {
-              routeId: route.id,
-              routeName: getRouteLabel(route.id)
-            },
-            geometry: routeGeometry
-          }
-        });
-        
-        map.current.addLayer({
-          id: `route-${i}`,
-          type: 'line',
-          source: `route-${i}`,
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': color,
-            'line-width': route.id === selectedRoute?.id ? 6 : 4, // Make selected route thicker
-            'line-opacity': route.id === selectedRoute?.id ? 0.9 : 0.7,
-            'line-dasharray': i === 1 ? [2, 1] : i === 2 ? [1, 1] : [1, 0] // Different dash patterns
-          }
-        });
-        
-        // Add click event
-        map.current.on('click', `route-${i}`, (e) => {
-          if (e.features && e.features[0].properties && onRouteClick) {
-            const clickedRouteId = e.features[0].properties.routeId;
-            const clickedRoute = routes.find(r => r.id === clickedRouteId);
-            if (clickedRoute) {
-              onRouteClick(clickedRoute);
-            }
-          }
-        });
-        
-        // Add hover effect
-        map.current.on('mouseenter', `route-${i}`, () => {
-          map.current!.getCanvas().style.cursor = 'pointer';
-        });
-        
-        map.current.on('mouseleave', `route-${i}`, () => {
-          map.current!.getCanvas().style.cursor = '';
-        });
-        
-        // Extend bounds
-        json.routes[0].geometry.coordinates.forEach(coord => {
-          bounds.extend(coord as [number, number]);
-        });
-      }
-      
-      // Fit map to bounds of all routes
-      map.current.fitBounds(bounds, {
-        padding: 50,
-        maxZoom: 14
-      });
-      
-      // Add a legend
-      addRouteLegend(routes);
-      
-    } catch (error) {
-      console.error('Error drawing routes:', error);
-      toast({
-        title: "Route Error",
-        description: "Could not calculate routes. Please try again.",
-        duration: 3000,
-      });
-    }
-  };
-
-  // Helper function to generate different waypoints for each route type
-  const generateWaypointsForRouteType = (start: Location, end: Location, routeType: string): Array<[number, number]> => {
-    // Base waypoints are start and end
-    const baseWaypoints: Array<[number, number]> = [
-      [start.lng, start.lat],
-      [end.lng, end.lat]
-    ];
-    
-    // Add intermediate waypoints based on route type to make the routes visually different
-    const midLng = (start.lng + end.lng) / 2;
-    const midLat = (start.lat + end.lat) / 2;
-    
-    // Calculate distance to determine waypoint offset
-    const distance = Math.sqrt(
-      Math.pow(end.lng - start.lng, 2) + Math.pow(end.lat - start.lat, 2)
-    );
-    
-    const offset = distance * 0.15; // 15% offset
-    
-    switch (routeType) {
-      case 'eco-route':
-        // Eco route takes a slight detour to the south
-        return [
-          [start.lng, start.lat],
-          [midLng - offset * 0.5, midLat - offset],
-          [end.lng, end.lat]
-        ];
-      case 'fast-route':
-        // Fast route is most direct
-        return baseWaypoints;
-      case 'balanced-route':
-        // Balanced route takes a slight detour to the north
-        return [
-          [start.lng, start.lat],
-          [midLng + offset * 0.5, midLat + offset * 0.8],
-          [end.lng, end.lat]
-        ];
-      default:
-        return baseWaypoints;
-    }
-  };
-
-  // Helper function to slightly offset routes for better visualization
-  const offsetRouteGeometry = (geometry: any, routeIndex: number): any => {
-    if (routeIndex === 0) return geometry; // No offset for first route
-    
-    // Small offset based on route index
-    const offsetFactor = 0.0002 * routeIndex;
-    
-    const offsetCoordinates = geometry.coordinates.map((coord: [number, number]) => {
-      return [coord[0] + offsetFactor, coord[1] + offsetFactor];
-    });
-    
-    return {
-      ...geometry,
-      coordinates: offsetCoordinates
-    };
-  };
-
-  // Add a legend for routes
-  const addRouteLegend = (routes: RouteOption[]) => {
+  // Create legend for route comparison
+  const createComparisonLegend = (routes: RouteOption[]) => {
     // Remove existing legend if any
     const existingLegend = document.getElementById('route-legend');
     if (existingLegend && existingLegend.parentNode) {
@@ -402,15 +720,11 @@ const Map: React.FC<MapProps> = ({
     const legend = document.createElement('div');
     legend.id = 'route-legend';
     legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200 animate-fade-in';
+    legend.style.cssText = 'min-width: 200px; max-width: 300px;';
     
     const title = document.createElement('div');
     title.textContent = 'Route Comparison';
     title.className = 'font-semibold text-sm mb-2 flex items-center';
-    
-    // Add icon to title
-    const titleIcon = document.createElement('span');
-    titleIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M3 17l2 2 4-4"></path><path d="M3 7l2 2 4-4"></path><path d="M13 17l6-6"></path><path d="M13 7l6-6"></path></svg>';
-    title.prepend(titleIcon);
     
     legend.appendChild(title);
     
@@ -454,273 +768,69 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
-  const drawRoute = async (route: RouteOption) => {
-    if (!map.current || locations.length < 2) return;
-    
-    try {
-      // Find start and end locations
-      const start = locations.find(loc => loc.type === 'start' || loc.type === 'current');
-      const end = locations.find(loc => loc.type === 'end');
-      
-      if (!start || !end) return;
-      
-      // If map already has the route layer, remove it
-      if (map.current.getLayer('route')) {
-        map.current.removeLayer('route');
-      }
-      
-      if (map.current.getSource('route')) {
-        map.current.removeSource('route');
-      }
-      
-      // Generate waypoints based on route type to ensure a unique path visualization
-      const waypoints = generateWaypointsForRouteType(start, end, route.id);
-      
-      // Use Mapbox Directions API to get route
-      const query = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${mapApiKey}`
-      );
-      
-      if (!query.ok) {
-        throw new Error('Network response was not ok');
-      }
-      
-      const json = await query.json();
-      
-      if (json.code !== 'Ok') {
-        throw new Error(json.message || 'Could not calculate route');
-      }
-      
-      // Add route to map
-      map.current.addSource('route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {
-            routeId: route.id,
-            routeName: getRouteLabel(route.id)
-          },
-          geometry: json.routes[0].geometry
-        }
-      });
-      
-      map.current.addLayer({
-        id: 'route',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
-        },
-        paint: {
-          'line-color': getRouteColor(route.id),
-          'line-width': 6,
-          'line-opacity': 0.8
-        }
-      });
-      
-      // Add route markers for additional information like distance and time
-      if (activeNavigation) {
-        addRouteMarkers(json.routes[0], route);
-      }
-      
-      // Fit map to bounds of the route
-      const bounds = new mapboxgl.LngLatBounds();
-      json.routes[0].geometry.coordinates.forEach(coord => {
-        bounds.extend(coord as [number, number]);
-      });
-      
-      map.current.fitBounds(bounds, {
-        padding: 50,
-        maxZoom: 14
-      });
-      
-    } catch (error) {
-      console.error('Error drawing route:', error);
-      toast({
-        title: "Route Error",
-        description: "Could not calculate route. Please try again.",
-        duration: 3000,
-      });
+  // Create legend for a single route
+  const createSingleRouteLegend = (route: RouteOption) => {
+    // Remove existing legend if any
+    const existingLegend = document.getElementById('route-legend');
+    if (existingLegend && existingLegend.parentNode) {
+      existingLegend.parentNode.removeChild(existingLegend);
     }
-  };
-
-  const addRouteMarkers = (routeData: any, route: RouteOption) => {
-    if (!map.current) return;
     
-    // Add start and end markers with information
-    const coords = routeData.geometry.coordinates;
+    // Create new legend
+    const legend = document.createElement('div');
+    legend.id = 'route-legend';
+    legend.className = 'absolute bottom-16 right-4 bg-white p-3 rounded-lg shadow-md z-10 border border-gray-200 animate-fade-in';
+    legend.style.cssText = 'min-width: 200px;';
     
-    if (coords.length > 0) {
-      // Start marker
-      const startEl = document.createElement('div');
-      startEl.className = 'route-marker-start';
-      startEl.innerHTML = `<div class="flex items-center bg-eco text-white px-2 py-1 rounded-md text-xs shadow-md">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-        Start
-      </div>`;
-      
-      new mapboxgl.Marker({ element: startEl })
-        .setLngLat(coords[0])
-        .addTo(map.current);
-        
-      // End marker
-      const endEl = document.createElement('div');
-      endEl.className = 'route-marker-end';
-      endEl.innerHTML = `<div class="flex items-center bg-energy-high text-white px-2 py-1 rounded-md text-xs shadow-md">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><circle cx="12" cy="12" r="10"></circle><polyline points="8 12 12 16 16 12"></polyline><line x1="12" y1="8" x2="12" y2="16"></line></svg>
-        Destination
-      </div>`;
-      
-      new mapboxgl.Marker({ element: endEl })
-        .setLngLat(coords[coords.length - 1])
-        .addTo(map.current);
-        
-      // Add any charging stops if needed
-      if (route.chargingStops > 0) {
-        // Place charging markers at regular intervals
-        const stopsToPlace = Math.min(route.chargingStops, 3); // Limit to 3 visual stops
-        
-        for (let i = 1; i <= stopsToPlace; i++) {
-          const index = Math.floor((coords.length / (stopsToPlace + 1)) * i);
-          
-          if (index < coords.length) {
-            const stopEl = document.createElement('div');
-            stopEl.className = 'route-marker-charging';
-            stopEl.innerHTML = `<div class="flex items-center bg-tech text-white px-2 py-1 rounded-md text-xs shadow-md">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
-              Charging Stop
-            </div>`;
-            
-            new mapboxgl.Marker({ element: stopEl })
-              .setLngLat(coords[index])
-              .addTo(map.current);
-          }
-        }
-      }
-      
-      // Add route information at key points
-      const midPoint = Math.floor(coords.length / 2);
-      if (midPoint < coords.length) {
-        const infoEl = document.createElement('div');
-        infoEl.className = 'route-marker-info';
-        infoEl.innerHTML = `<div class="flex items-center bg-white px-2 py-1 rounded-md text-xs shadow-md border border-${getRouteColor(route.id)} animate-float">
-          <span class="font-medium" style="color: ${getRouteColor(route.id)};">${getRouteLabel(route.id)}</span>
-          <span class="mx-1">•</span>
-          <span>${route.distance} km</span>
-          <span class="mx-1">•</span>
-          <span>${route.duration} min</span>
-        </div>`;
-        
-        new mapboxgl.Marker({ element: infoEl })
-          .setLngLat(coords[midPoint])
-          .addTo(map.current);
-      }
-    }
-  };
-
-  const initializeMap = (apiKey: string) => {
-    try {
-      if (!mapContainerRef.current) return;
-      
-      mapboxgl.accessToken = apiKey;
-      
-      const newMap = new mapboxgl.Map({
-        container: mapContainerRef.current,
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [77.2090, 28.6139], // Default center on Delhi, India
-        zoom: 6,
-        projection: 'mercator'
-      });
-      
-      // Add navigation control (zoom buttons)
-      newMap.addControl(new mapboxgl.NavigationControl(), 'top-right');
-      
-      // Add geolocate control
-      newMap.addControl(
-        new mapboxgl.GeolocateControl({
-          positionOptions: {
-            enableHighAccuracy: true
-          },
-          trackUserLocation: true,
-          showUserHeading: true
-        }),
-        'top-right'
-      );
-      
-      // Add scale control
-      newMap.addControl(new mapboxgl.ScaleControl(), 'bottom-left');
-      
-      // Set reference to map instance
-      map.current = newMap;
-      
-      // Handle map load event
-      newMap.on('load', () => {
-        toast({
-          title: "Map Loaded",
-          description: "Mapbox map has been loaded successfully.",
-          duration: 3000,
-        });
-      });
-      
-      // Handle map click event to allow adding locations
-      newMap.on('click', (e) => {
-        console.log('Map clicked at:', e.lngLat);
-        
-        // We could implement location selection on click here
-        // For now, just log the coordinates
-      });
-      
-      // Handle map errors
-      newMap.on('error', (e) => {
-        console.error('Map error:', e.error);
-        setMapError('An error occurred with the map. Please refresh the page.');
-      });
-      
-    } catch (error) {
-      console.error('Error initializing map:', error);
-      setMapError('Could not initialize map. Please check your API key.');
-    }
-  };
-
-  const handleMapKeySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+    const title = document.createElement('div');
+    title.textContent = getRouteLabel(route.id);
+    title.className = 'font-semibold text-sm mb-2 flex items-center';
+    title.style.color = getRouteColor(route.id);
     
-    if (mapApiKey) {
-      try {
-        // Attempt to initialize map with provided key
-        initializeMap(mapApiKey);
-        
-        // Save key to localStorage
-        localStorage.setItem('mapApiKey', mapApiKey);
-        setShowMapKeyInput(false);
-        
-        toast({
-          title: "API Key Saved",
-          description: "Your Mapbox API key has been saved successfully.",
-          duration: 3000,
-        });
-      } catch (error) {
-        console.error('Error validating API key:', error);
-        toast({
-          title: "Invalid API Key",
-          description: "Please check your Mapbox API key and try again.",
-          duration: 3000,
-        });
-      } finally {
-        setIsLoading(false);
-      }
+    legend.appendChild(title);
+    
+    const details = document.createElement('div');
+    details.className = 'text-xs space-y-1';
+    
+    const items = [
+      { label: 'Distance', value: `${route.distance} km` },
+      { label: 'Duration', value: `${route.duration} min` },
+      { label: 'Energy Usage', value: `${route.energyUsage.toFixed(1)} kWh` },
+      { label: 'Eco Score', value: `${route.ecoScore}/100` },
+      { label: 'CO2 Saved', value: `${route.co2Saved.toFixed(1)} kg` },
+      { label: 'Charging Stops', value: route.chargingStops.toString() }
+    ];
+    
+    items.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'flex justify-between';
+      
+      const label = document.createElement('span');
+      label.textContent = item.label;
+      label.className = 'text-gray-500';
+      
+      const value = document.createElement('span');
+      value.textContent = item.value;
+      value.className = 'font-medium';
+      
+      row.appendChild(label);
+      row.appendChild(value);
+      details.appendChild(row);
+    });
+    
+    legend.appendChild(details);
+    
+    // Add to map container
+    const mapContainer = mapContainerRef.current;
+    if (mapContainer) {
+      mapContainer.appendChild(legend);
     }
   };
 
   const resetMap = () => {
-    if (map.current) {
-      map.current.flyTo({
-        center: userLocation || [77.2090, 28.6139],
-        zoom: 10,
-        essential: true
-      });
+    if (map && userLocation) {
+      map.setCenter(userLocation);
+      map.setZoom(13);
     }
   };
 
@@ -767,7 +877,7 @@ const Map: React.FC<MapProps> = ({
   };
 
   return (
-    <div className="w-full h-[60vh] lg:h-[70vh] relative map-container">
+    <div className="w-full h-[60vh] lg:h-[70vh] relative map-container bg-gradient-to-b from-background to-background/90 rounded-xl overflow-hidden">
       {mapError && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
           <Alert className="max-w-md">
@@ -781,55 +891,19 @@ const Map: React.FC<MapProps> = ({
         {/* Map will be rendered here */}
       </div>
       
-      {showMapKeyInput && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
-          <Card className="w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Enter Mapbox API Key</h3>
-            <form onSubmit={handleMapKeySubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="apiKey" className="text-sm font-medium">
-                  Mapbox API Key
-                </label>
-                <Input
-                  id="apiKey"
-                  type="text"
-                  value={mapApiKey}
-                  onChange={(e) => setMapApiKey(e.target.value)}
-                  placeholder="Enter your Mapbox API key"
-                  className="w-full"
-                />
-                <p className="text-xs text-muted-foreground">
-                  You can get a Mapbox API key from <a href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer" className="text-eco hover:underline">mapbox.com</a>
-                </p>
-              </div>
-              <Button
-                type="submit"
-                className="w-full bg-eco hover:bg-eco-dark"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Validating...' : 'Set API Key'}
-              </Button>
-              <p className="text-xs text-gray-500 mt-2">
-                This key will be stored locally on your device.
-              </p>
-            </form>
-          </Card>
-        </div>
-      )}
-      
-      {!showMapKeyInput && (
+      {!isLoading && (
         <div className="absolute bottom-4 left-4 max-w-xs">
           <Alert className="bg-background/80 backdrop-blur-sm">
             <Info className="h-4 w-4" />
             <AlertDescription className="text-xs">
-              Interactive map for Indian regions with real-time data from Mapbox.
+              Green Drive interactive map with real-time data.
             </AlertDescription>
           </Alert>
         </div>
       )}
       
       {/* Map controls */}
-      {!showMapKeyInput && (
+      {!isLoading && (
         <div className="absolute top-4 right-4 flex space-x-2">
           <Button variant="outline" size="sm" className="bg-background/80 backdrop-blur-sm" onClick={resetMap}>
             <RotateCcw className="h-4 w-4 mr-1" />
@@ -839,7 +913,7 @@ const Map: React.FC<MapProps> = ({
       )}
       
       {/* Map options */}
-      {!showMapKeyInput && (
+      {!isLoading && (
         <div className="absolute top-4 left-4 p-2 bg-background/80 backdrop-blur-sm rounded-md">
           <div className="flex items-center space-x-2 mb-2">
             <Switch 
@@ -868,7 +942,7 @@ const Map: React.FC<MapProps> = ({
       )}
       
       {/* Map action buttons */}
-      {!showMapKeyInput && (
+      {!isLoading && (
         <div className="absolute bottom-4 right-4 flex flex-col space-y-2">
           <Button 
             variant="outline" 
@@ -886,19 +960,11 @@ const Map: React.FC<MapProps> = ({
             size="sm" 
             className="bg-background/80 backdrop-blur-sm"
             onClick={() => {
-              if (map.current && userLocation) {
-                map.current.flyTo({
-                  center: userLocation,
-                  zoom: 14,
-                  essential: true
-                });
+              if (map && userLocation) {
+                map.setCenter(userLocation);
+                map.setZoom(14);
               } else {
-                toast({
-                  title: "Location Not Found",
-                  description: "Couldn't determine your current location",
-                  variant: "destructive",
-                  duration: 3000,
-                });
+                getUserLocation();
               }
             }}
           >

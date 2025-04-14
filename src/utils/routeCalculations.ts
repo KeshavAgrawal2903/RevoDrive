@@ -1,117 +1,80 @@
 
 /**
- * EcoRoute Calculation Utility
- * Contains formulas and algorithms for energy prediction, route optimization, and eco-scoring
+ * Green Drive - Route Calculation Formulas
+ * 
+ * This utility file contains all formulas used for calculating energy usage,
+ * eco scores, CO2 savings, and other metrics for electric vehicle routing.
  */
 
-import { WeatherData, VehicleData } from '@/hooks/useMapData';
-
-// Constants for energy calculations
-const CONSTANTS = {
-  // Efficiency factors
-  BASE_EFFICIENCY: 0.15, // kWh per km (baseline)
-  FAST_ROUTE_EFFICIENCY: 0.18, // kWh per km (fast route)
-  BALANCED_ROUTE_EFFICIENCY: 0.16, // kWh per km (balanced route)
-  
-  // Weather impact factors
-  RAIN_IMPACT: 1.15, // 15% increase in energy consumption
-  SNOW_IMPACT: 1.25, // 25% increase in energy consumption
-  HIGH_WIND_IMPACT: 1.2, // 20% increase in energy consumption
-  MEDIUM_WIND_IMPACT: 1.1, // 10% increase in energy consumption
-  
-  // Elevation impact factors (per meter of elevation)
-  ELEVATION_FACTOR: 0.002, // kWh per meter of elevation gain
-  
-  // Traffic impact
-  TRAFFIC_IMPACT: 0.05, // kWh per minute of traffic delay
-  
-  // Carbon savings (compared to gasoline vehicle)
-  // Average gasoline car: ~120g CO2 per km
-  // EV in India: ~85g CO2 per km (considering India's energy mix)
-  CO2_SAVINGS: 0.035, // kg CO2 saved per km
-  
-  // Temperature impact
-  HIGH_TEMP_IMPACT: 1.12, // 12% increase when > 35°C (AC usage)
-  LOW_TEMP_IMPACT: 1.15, // 15% increase when < 10°C (heating usage)
-  
-  // Route colors for visualization
-  ROUTE_COLORS: {
-    'eco-route': '#10b981', // green for eco route
-    'fast-route': '#ef4444', // red for fast route
-    'balanced-route': '#8b5cf6', // purple for balanced route
-  }
-};
+// ========== ENERGY USAGE CALCULATION ==========
 
 /**
- * Calculate energy usage for a route based on distance, elevation, traffic and weather
- * Uses physics-based formulas for more accurate predictions
+ * Calculate the energy usage for a route
+ * Formula: Energy (kWh) = (Base Consumption × Distance) + Elevation Factor + Traffic Factor + Weather Factor
+ *
+ * @param distance - Distance in kilometers
+ * @param elevationGain - Elevation gain in meters
+ * @param trafficDelay - Traffic delay in minutes
+ * @param weather - Weather conditions data
+ * @param routeType - Type of route (eco, fast, balanced)
+ * @returns Energy usage in kWh
  */
 export const calculateEnergyUsage = (
-  distance: number, // in km
-  elevationGain: number, // in meters
-  trafficDelay: number, // in minutes
-  weather: WeatherData,
-  routeType: 'eco' | 'fast' | 'balanced' = 'balanced'
+  distance: number,
+  elevationGain: number,
+  trafficDelay: number,
+  weather: any,
+  routeType: 'eco' | 'fast' | 'balanced'
 ): number => {
-  // Base energy consumption based on route type
-  let baseEfficiency;
-  switch (routeType) {
-    case 'eco':
-      baseEfficiency = CONSTANTS.BASE_EFFICIENCY;
-      break;
-    case 'fast':
-      baseEfficiency = CONSTANTS.FAST_ROUTE_EFFICIENCY;
-      break;
-    case 'balanced':
-    default:
-      baseEfficiency = CONSTANTS.BALANCED_ROUTE_EFFICIENCY;
-      break;
+  // 1. Base consumption rates in kWh per km (average for modern EVs in India)
+  // Based on real-world efficiency of popular EVs in India
+  const baseConsumptionRates = {
+    eco: 0.14, // Most efficient driving style (gentle acceleration, lower speeds)
+    balanced: 0.16, // Normal driving style
+    fast: 0.19, // Aggressive driving style (rapid acceleration, higher speeds)
+  };
+
+  // 2. Elevation impact
+  // Formula: Additional energy = 0.002 kWh per meter of elevation gain per km
+  const elevationFactor = (elevationGain / 100) * distance * 0.002;
+
+  // 3. Traffic impact
+  // Each minute of delay increases consumption by 0.03 kWh per km (due to stop-and-go)
+  const trafficFactor = (trafficDelay / 10) * distance * 0.03;
+
+  // 4. Weather impact
+  // Temperature affects battery efficiency (optimal range is 20-25°C)
+  let weatherFactor = 0;
+  
+  if (weather) {
+    // Temperature effects (non-linear relationship)
+    const tempDeviation = Math.abs(weather.temperature - 22.5); // Deviation from optimal (22.5°C)
+    weatherFactor += (tempDeviation / 10) * distance * 0.01;
+    
+    // Wind and precipitation effects
+    weatherFactor += (weather.windSpeed / 20) * distance * 0.005;
+    weatherFactor += (weather.precipitation * 2) * distance * 0.01;
   }
+
+  // Calculate total energy usage
+  const baseConsumption = baseConsumptionRates[routeType] * distance;
+  const totalEnergy = baseConsumption + elevationFactor + trafficFactor + weatherFactor;
   
-  let energyUsage = distance * baseEfficiency;
-  
-  // Add elevation impact (potential energy = mass * g * height)
-  // Simplified as a direct factor of elevation gain
-  energyUsage += elevationGain * CONSTANTS.ELEVATION_FACTOR;
-  
-  // Add traffic impact (more energy used in stop-and-go traffic)
-  energyUsage += trafficDelay * CONSTANTS.TRAFFIC_IMPACT;
-  
-  // Apply weather impact multipliers
-  if (weather.condition.toLowerCase().includes('rain')) {
-    energyUsage *= CONSTANTS.RAIN_IMPACT;
-  } else if (weather.condition.toLowerCase().includes('snow')) {
-    energyUsage *= CONSTANTS.SNOW_IMPACT;
-  }
-  
-  // Apply wind impact
-  if (weather.windSpeed > 20) {
-    energyUsage *= CONSTANTS.HIGH_WIND_IMPACT;
-  } else if (weather.windSpeed > 10) {
-    energyUsage *= CONSTANTS.MEDIUM_WIND_IMPACT;
-  }
-  
-  // Apply temperature impact
-  if (weather.temperature > 35) {
-    energyUsage *= CONSTANTS.HIGH_TEMP_IMPACT;
-  } else if (weather.temperature < 10) {
-    energyUsage *= CONSTANTS.LOW_TEMP_IMPACT;
-  }
-  
-  // Round to one decimal place
-  return Math.round(energyUsage * 10) / 10;
+  // Round to 2 decimal places
+  return Math.round(totalEnergy * 100) / 100;
 };
 
-/**
- * Calculate CO2 savings compared to a gasoline vehicle
- */
-export const calculateCO2Savings = (distance: number): number => {
-  const savings = distance * CONSTANTS.CO2_SAVINGS;
-  return Math.round(savings * 10) / 10; // Round to one decimal place
-};
+// ========== ECO SCORE CALCULATION ==========
 
 /**
- * Calculate eco-score (0-100) based on energy efficiency, speed, and route characteristics
+ * Calculate eco-score for a route
+ * Formula: Weighted score based on energy efficiency, distance optimization, elevation, and traffic
+ * 
+ * @param energyUsage - Energy usage in kWh
+ * @param distance - Distance in kilometers
+ * @param elevationGain - Elevation gain in meters
+ * @param trafficDelay - Traffic delay in minutes
+ * @returns Eco-score from 0-100 (higher is better)
  */
 export const calculateEcoScore = (
   energyUsage: number,
@@ -119,163 +82,177 @@ export const calculateEcoScore = (
   elevationGain: number,
   trafficDelay: number
 ): number => {
-  // Base efficiency score (lower energy usage per km is better)
-  const efficiencyKWhPerKm = energyUsage / distance;
-  const efficiencyScore = Math.max(0, 100 - (efficiencyKWhPerKm * 250));
+  // Energy efficiency score (50% weight)
+  // Lower kWh/km is better, typical range 0.12-0.25 kWh/km
+  const efficiencyRatio = energyUsage / distance;
+  const efficiencyScore = Math.max(0, 50 * (1 - ((efficiencyRatio - 0.12) / 0.13)));
   
-  // Elevation penalty (high elevation changes reduce score)
-  const elevationPenalty = Math.min(15, elevationGain / 100);
+  // Route optimization score (20% weight)
+  // Based on how direct the route is compared to straight-line distance
+  // We estimate this using elevation and traffic as proxies
+  const optimizationScore = 20 * (1 - ((elevationGain / 500) * 0.3 + (trafficDelay / 30) * 0.7));
   
-  // Traffic penalty (more traffic reduces score)
-  const trafficPenalty = Math.min(10, trafficDelay);
+  // Terrain compatibility score (15% weight)
+  // Lower elevation gain is better for EVs
+  const terrainScore = 15 * (1 - Math.min(1, elevationGain / 800));
   
-  // Final score calculation
-  let score = efficiencyScore - elevationPenalty - trafficPenalty;
+  // Traffic efficiency score (15% weight)
+  // Less traffic delay is better
+  const trafficScore = 15 * (1 - Math.min(1, trafficDelay / 30));
   
-  // Ensure score is within 0-100 range
-  score = Math.max(0, Math.min(100, score));
+  // Calculate total score and ensure it's in the 0-100 range
+  let finalScore = efficiencyScore + optimizationScore + terrainScore + trafficScore;
+  finalScore = Math.max(0, Math.min(100, finalScore));
   
-  return Math.round(score);
+  return Math.round(finalScore);
 };
 
+// ========== CO2 SAVINGS CALCULATION ==========
+
 /**
- * Calculate number of charging stops needed based on distance and vehicle range
+ * Calculate CO2 savings compared to equivalent gasoline/diesel vehicle
+ * Formula: CO2 saved = Distance × (ICE emissions - EV emissions)
+ * 
+ * @param distance - Distance in kilometers
+ * @returns CO2 savings in kg
  */
-export const calculateChargingStops = (
-  distance: number, 
-  vehicleRange: number, 
-  safetyBuffer: number = 0.2 // 20% safety buffer
-): number => {
-  // If distance is within vehicle range with safety buffer, no stops needed
-  const effectiveRange = vehicleRange * (1 - safetyBuffer);
+export const calculateCO2Savings = (distance: number): number => {
+  // Average CO2 emissions for gasoline cars in India: 150-180 g/km
+  const gasolineEmissions = 0.170; // kg CO2 per km
   
-  if (distance <= effectiveRange) {
+  // Average CO2 emissions for EV in India (based on grid mix): 80-110 g/km
+  // India's electricity grid has high coal dependency, so EV emissions are higher than in countries with cleaner grids
+  const evEmissions = 0.095; // kg CO2 per km
+  
+  // Calculate CO2 saved
+  const co2Saved = (gasolineEmissions - evEmissions) * distance;
+  
+  return Math.round(co2Saved * 100) / 100;
+};
+
+// ========== CHARGING STOPS CALCULATION ==========
+
+/**
+ * Calculate number of charging stops needed for a route
+ * 
+ * @param distance - Distance in kilometers
+ * @param vehicleRange - Vehicle range in kilometers
+ * @returns Number of charging stops required
+ */
+export const calculateChargingStops = (distance: number, vehicleRange: number): number => {
+  // If distance is less than 80% of vehicle range, no charging stop needed
+  // 80% buffer for safety and to account for real-world range being less than rated
+  if (distance <= vehicleRange * 0.8) {
     return 0;
   }
   
-  // Calculate number of stops needed
-  // Formula: stops = ceil(distance / effectiveRange) - 1
-  // Subtract 1 because we don't count the final destination as a charging stop
-  return Math.ceil(distance / effectiveRange) - 1;
+  // Calculate stops needed, assuming charging to 80% each time
+  // We subtract the initial range, then divide remaining distance by usable range per charge
+  const effectiveRangePerCharge = vehicleRange * 0.7; // Assuming charging to 80% and keeping 10% buffer
+  const remainingDistance = distance - (vehicleRange * 0.8);
+  
+  return Math.ceil(remainingDistance / effectiveRangePerCharge);
 };
 
-/**
- * Get route color based on route type
- */
-export const getRouteColor = (routeType: string): string => {
-  return CONSTANTS.ROUTE_COLORS[routeType as keyof typeof CONSTANTS.ROUTE_COLORS] || '#3b82f6';
-};
+// ========== COST CALCULATIONS ==========
 
 /**
- * Calculate cost savings compared to a petrol vehicle
+ * Calculate charging cost for a route
  * 
- * @param distance Distance in km
- * @param electricityRatePerKWh Electricity rate in rupees per kWh (default: ₹8)
- * @param petrolRatePerLiter Petrol rate in rupees per liter (default: ₹95)
- * @param petrolEfficiency Average petrol car efficiency in km per liter (default: 12)
- * @param evEfficiency EV efficiency in km per kWh (default: 6)
- * @returns Savings in rupees
+ * @param energyUsage - Energy usage in kWh
+ * @param electricityRate - Electricity rate in ₹/kWh
+ * @returns Cost in ₹
+ */
+export const calculateChargingCost = (energyUsage: number, electricityRate: number = 8): number => {
+  return Math.round(energyUsage * electricityRate);
+};
+
+/**
+ * Calculate cost savings compared to gasoline/diesel vehicle
+ * 
+ * @param distance - Distance in kilometers
+ * @param fuelPrice - Fuel price in ₹/liter
+ * @param fuelEfficiency - Fuel efficiency in km/liter
+ * @param energyUsage - Energy usage in kWh
+ * @param electricityRate - Electricity rate in ₹/kWh
+ * @returns Cost savings in ₹
  */
 export const calculateCostSavings = (
   distance: number,
-  electricityRatePerKWh = 8,
-  petrolRatePerLiter = 95,
-  petrolEfficiency = 12,
-  evEfficiency = 6
+  fuelPrice: number = 102, // Average fuel price in India (₹/liter)
+  fuelEfficiency: number = 12, // Average fuel efficiency in km/liter
+  energyUsage: number,
+  electricityRate: number = 8 // Average electricity rate in India (₹/kWh)
 ): number => {
-  // Cost for petrol vehicle = (distance / km per liter) * rate per liter
-  const petrolCost = (distance / petrolEfficiency) * petrolRatePerLiter;
+  // Cost of using gasoline/diesel vehicle
+  const fuelCost = (distance / fuelEfficiency) * fuelPrice;
   
-  // Cost for electric vehicle = (distance / km per kWh) * rate per kWh
-  const electricityCost = (distance / evEfficiency) * electricityRatePerKWh;
+  // Cost of using EV
+  const electricityCost = energyUsage * electricityRate;
   
-  // Savings = petrol cost - electricity cost
-  const savings = petrolCost - electricityCost;
+  // Calculate savings
+  const savings = fuelCost - electricityCost;
   
   return Math.round(savings);
 };
 
+// ========== BATTERY RANGE CALCULATIONS ==========
+
 /**
- * Calculate energy usage based on various factors
- * More detailed calculation for energy prediction component
+ * Calculate remaining driving range based on current battery level
+ * 
+ * @param batteryPercentage - Current battery percentage (0-100)
+ * @param fullRangeKm - Full charge range in kilometers
+ * @returns Remaining range in kilometers
  */
-export const calculateDetailedEnergyUsage = (
-  distance: number,
-  elevationGain: number,
-  trafficDelay: number,
-  vehicle: VehicleData,
-  weather: WeatherData,
-  routeType: 'eco' | 'fast' | 'balanced' = 'balanced'
-) => {
-  // Base calculation
-  let energyUsage = calculateEnergyUsage(distance, elevationGain, trafficDelay, weather, routeType);
-  
-  // Calculate individual components for detailed breakdown
-  const baseEnergy = distance * vehicle.efficiency / 100; // kWh for basic movement
-  const elevationEnergy = elevationGain * CONSTANTS.ELEVATION_FACTOR; // kWh for climbing
-  const trafficEnergy = trafficDelay * CONSTANTS.TRAFFIC_IMPACT; // kWh for traffic
-  
-  // Weather factors
-  let weatherMultiplier = 1;
-  if (weather.condition.toLowerCase().includes('rain')) {
-    weatherMultiplier = CONSTANTS.RAIN_IMPACT;
-  } else if (weather.condition.toLowerCase().includes('snow')) {
-    weatherMultiplier = CONSTANTS.SNOW_IMPACT;
-  }
-  
-  // Wind impact
-  let windMultiplier = 1;
-  if (weather.windSpeed > 20) {
-    windMultiplier = CONSTANTS.HIGH_WIND_IMPACT;
-  } else if (weather.windSpeed > 10) {
-    windMultiplier = CONSTANTS.MEDIUM_WIND_IMPACT;
-  }
-  
-  // Temperature impact
-  let tempMultiplier = 1;
-  if (weather.temperature > 35) {
-    tempMultiplier = CONSTANTS.HIGH_TEMP_IMPACT;
-  } else if (weather.temperature < 10) {
-    tempMultiplier = CONSTANTS.LOW_TEMP_IMPACT;
-  }
-  
-  const weatherEnergy = baseEnergy * (Math.max(weatherMultiplier, windMultiplier, tempMultiplier) - 1);
-  
-  // Climate control energy (heating/cooling)
-  const climateControlEnergy = (weather.temperature > 30 || weather.temperature < 15) 
-    ? distance * 0.01 : 0;
-  
-  // Return detailed breakdown
-  return {
-    total: energyUsage,
-    base: Math.round(baseEnergy * 10) / 10,
-    elevation: Math.round(elevationEnergy * 10) / 10,
-    traffic: Math.round(trafficEnergy * 10) / 10,
-    weather: Math.round(weatherEnergy * 10) / 10,
-    climateControl: Math.round(climateControlEnergy * 10) / 10,
-  };
+export const calculateRemainingRange = (batteryPercentage: number, fullRangeKm: number): number => {
+  // Apply a non-linear formula since battery consumption isn't perfectly linear
+  // Lower battery percentage yields slightly less range proportionally
+  const adjustedPercentage = Math.pow(batteryPercentage / 100, 1.05);
+  return Math.round(adjustedPercentage * fullRangeKm);
 };
 
 /**
- * Calculate range remaining after a trip
+ * Calculate charging time estimate
+ * 
+ * @param currentBattery - Current battery percentage (0-100)
+ * @param targetBattery - Target battery percentage (0-100)
+ * @param chargerPower - Charger power in kW
+ * @param batteryCapacity - Battery capacity in kWh
+ * @returns Charging time in minutes
  */
-export const calculateRangeAfterTrip = (
-  currentRange: number,
-  energyUsage: number,
-  batteryCapacity: number,
-  efficiency: number
+export const calculateChargingTime = (
+  currentBattery: number,
+  targetBattery: number,
+  chargerPower: number,
+  batteryCapacity: number
 ): number => {
-  // Convert current range to battery percentage
-  const currentBatteryPercentage = (currentRange * efficiency) / batteryCapacity;
+  // Different charging speeds at different battery levels
+  // Charging slows down significantly above 80%
+  const batteryToCharge = targetBattery - currentBattery;
   
-  // Energy used as a percentage of total capacity
-  const energyPercentageUsed = energyUsage / batteryCapacity;
+  if (batteryToCharge <= 0) {
+    return 0;
+  }
   
-  // Remaining battery percentage
-  const remainingPercentage = Math.max(0, currentBatteryPercentage - energyPercentageUsed);
+  let chargingTime = 0;
   
-  // Convert back to range
-  const remainingRange = (remainingPercentage * batteryCapacity) / efficiency;
+  // Calculate time to reach 80% if target is above 80%
+  if (currentBattery < 80 && targetBattery > 80) {
+    // Time to reach 80% from current
+    const timeToEighty = ((80 - currentBattery) / 100) * batteryCapacity / chargerPower * 60;
+    // Time to reach target from 80%
+    const timeAboveEighty = ((targetBattery - 80) / 100) * batteryCapacity / (chargerPower * 0.5) * 60;
+    chargingTime = timeToEighty + timeAboveEighty;
+  } 
+  // If all charging is above 80%, it's slower
+  else if (currentBattery >= 80) {
+    chargingTime = (batteryToCharge / 100) * batteryCapacity / (chargerPower * 0.5) * 60;
+  } 
+  // If all charging is below 80%, it's faster
+  else {
+    chargingTime = (batteryToCharge / 100) * batteryCapacity / chargerPower * 60;
+  }
   
-  return Math.round(remainingRange);
+  return Math.round(chargingTime);
 };
