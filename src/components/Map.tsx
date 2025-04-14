@@ -221,7 +221,7 @@ const Map: React.FC<MapProps> = ({
         const waypoints = generateWaypointsForRouteType(start, end, route.id);
         
         const query = await fetch(
-          `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${mapApiKey}`
+          `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${MAPBOX_API_KEY}`
         );
         
         if (!query.ok) {
@@ -432,7 +432,7 @@ const Map: React.FC<MapProps> = ({
       const waypoints = generateWaypointsForRouteType(start, end, route.id);
       
       const query = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${mapApiKey}`
+        `https://api.mapbox.com/directions/v5/mapbox/driving/${waypoints.map(wp => wp.join(',')).join(';')}?geometries=geojson&access_token=${MAPBOX_API_KEY}`
       );
       
       if (!query.ok) {

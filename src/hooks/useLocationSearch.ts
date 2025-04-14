@@ -58,7 +58,7 @@ export const useLocationSearch = () => {
       console.error('Error searching locations:', error);
       return [];
     } finally {
-      setIsLoading(false);
+      setIsSearching(false);
     }
   }, []);
 
