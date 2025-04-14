@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -29,6 +28,13 @@ interface MapProps {
   onLocationUpdate?: (location: Location) => void;
   onRouteClick?: (route: RouteOption) => void;
   useCurrentLocation?: boolean;
+}
+
+// Declare type for Google Maps API objects
+declare global {
+  interface Window {
+    google: typeof google;
+  }
 }
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyBJ1SZvlfgcy2nTGBraa2MkS5amw_lOTM8';
