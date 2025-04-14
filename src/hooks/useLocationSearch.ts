@@ -1,6 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { Location } from './useMapData';
+import { useToast } from '@/hooks/use-toast';
 
 interface GeocodingFeature {
   id: string;
@@ -15,6 +16,98 @@ const MAPBOX_API_KEY = import.meta.env.VITE_MAPBOX_API_KEY || 'pk.eyJ1Ijoia2VzaG
 export const useLocationSearch = () => {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<Location[]>([]);
+  const { toast } = useToast();
+
+  const getCurrentLocation = useCallback((): Promise<Location | null> => {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        toast({
+          title: "Geolocation Error",
+          description: "Geolocation is not supported by your browser. Using default location.",
+          duration: 5000,
+        });
+        console.log("Geolocation not supported - using default location");
+        resolve(null);
+        return;
+      }
+
+      const successHandler = (position: GeolocationPosition) => {
+        const { latitude, longitude } = position.coords;
+        console.log(`Current location found: ${latitude}, ${longitude}`);
+        
+        // Reverse geocode to get location name
+        fetch(
+          `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${MAPBOX_API_KEY}`
+        )
+          .then(response => response.json())
+          .then(data => {
+            const placeName = data.features && data.features[0] ? data.features[0].place_name : 'Current Location';
+            const location: Location = {
+              id: 'current-location',
+              name: placeName,
+              lat: latitude,
+              lng: longitude,
+              type: 'current'
+            };
+            
+            toast({
+              title: "Location Found",
+              description: `Found your location: ${placeName}`,
+              duration: 3000,
+            });
+            
+            resolve(location);
+          })
+          .catch(error => {
+            console.error("Reverse geocoding error:", error);
+            const location: Location = {
+              id: 'current-location',
+              name: 'Current Location',
+              lat: latitude,
+              lng: longitude,
+              type: 'current'
+            };
+            resolve(location);
+          });
+      };
+
+      const errorHandler = (error: GeolocationPositionError) => {
+        console.error("Geolocation error:", error);
+        let errorMessage = "Could not get your location. Using default location.";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Location permission denied. Please enable location services.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information unavailable. Using default location.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out. Using default location.";
+            break;
+        }
+        
+        toast({
+          title: "Location Error",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 5000,
+        });
+        
+        resolve(null);
+      };
+
+      // Enhance options for better local detection
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      };
+
+      console.log("Requesting user location...");
+      navigator.geolocation.getCurrentPosition(successHandler, errorHandler, options);
+    });
+  }, [toast]);
 
   const searchLocations = useCallback(async (
     query: string, 
@@ -64,6 +157,7 @@ export const useLocationSearch = () => {
 
   return {
     searchLocations,
+    getCurrentLocation,
     searchResults,
     isSearching,
     clearResults: () => setSearchResults([])
