@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -10,10 +10,14 @@ import {
   Droplets,
   BarChart3,
   ArrowUpRight,
-  LineChart
+  LineChart,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { RouteOption, VehicleData, WeatherData } from '@/hooks/useMapData';
 import { determineChargingNeedFuzzy } from '@/utils/fuzzyLogic';
+import FuzzyLogicVisualization from './FuzzyLogicVisualization';
+import { Button } from '@/components/ui/button';
 
 interface EnergyPredictionProps {
   selectedRoute: RouteOption | null;
@@ -26,6 +30,8 @@ const EnergyPrediction: React.FC<EnergyPredictionProps> = ({
   vehicle,
   weather
 }) => {
+  const [showFuzzyDetails, setShowFuzzyDetails] = useState(false);
+  
   if (!selectedRoute) return null;
   
   // Calculate predicted arrival battery using physics-based formula with fuzzy logic
@@ -43,12 +49,6 @@ const EnergyPrediction: React.FC<EnergyPredictionProps> = ({
   );
   const chargingNeeded = chargingInfo.needed;
   const chargingConfidence = chargingInfo.confidence;
-  
-  // Energy usage breakdown based on physics formulas and real-world factors
-  // Elevation: energy = mass * g * height (potential energy)
-  // Weather: increased resistance from wind, rain
-  // Traffic: additional stop-and-go energy waste
-  // Distance: base energy consumption per km
   
   // Impact factors for each component based on route conditions
   const calculateElevationImpact = () => {
@@ -205,6 +205,36 @@ const EnergyPrediction: React.FC<EnergyPredictionProps> = ({
               <span>{weather.humidity}%</span>
             </div>
           </div>
+        </div>
+        
+        {/* Fuzzy Logic Toggle */}
+        <div className="pt-2 border-t">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="w-full flex justify-between items-center text-sm font-medium text-tech"
+            onClick={() => setShowFuzzyDetails(!showFuzzyDetails)}
+          >
+            <span className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              Fuzzy Logic Analysis
+            </span>
+            {showFuzzyDetails ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </Button>
+          
+          {showFuzzyDetails && (
+            <FuzzyLogicVisualization 
+              temperature={weather.temperature}
+              windSpeed={weather.windSpeed}
+              trafficDelay={selectedRoute.trafficDelay}
+              elevationGain={selectedRoute.elevationGain}
+              weatherCondition={weather.condition}
+            />
+          )}
         </div>
       </CardContent>
     </Card>
