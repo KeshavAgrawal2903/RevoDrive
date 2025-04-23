@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,10 +39,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [activeCard, setActiveCard] = useState<string | null>(null);
   
-  // Calculate eco score
   const ecoScore = selectedRoute?.ecoScore || 0;
   
-  // Determine eco status based on score
   const getEcoStatus = () => {
     if (ecoScore >= 85) return { label: 'Excellent', color: 'text-energy-low' };
     if (ecoScore >= 70) return { label: 'Good', color: 'text-energy-medium' };
@@ -52,7 +49,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   
   const ecoStatus = getEcoStatus();
   
-  // Calculate metrics using formulas
   const energyEfficiency = selectedRoute 
     ? (selectedRoute.distance / selectedRoute.energyUsage).toFixed(1) 
     : '0.0';
@@ -81,7 +77,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  // Card hover handler
   const handleCardHover = (cardId: string) => {
     setActiveCard(cardId);
   };
@@ -90,7 +85,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     setActiveCard(null);
   };
 
-  // Main actions for the dashboard
   const primaryActions = [
     { name: 'navigate', icon: <Navigation className="h-4 w-4" />, label: 'Navigate', color: 'bg-gradient-to-r from-eco-dark to-eco hover:from-eco hover:to-eco-light text-white' },
     { name: 'recharge', icon: <Zap className="h-4 w-4" />, label: 'Recharge', color: 'bg-gradient-to-r from-energy-medium to-yellow-400 hover:from-yellow-400 hover:to-energy-medium text-white' },
@@ -98,7 +92,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     { name: 'settings', icon: <Settings className="h-4 w-4" />, label: 'Settings', color: 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white' }
   ];
 
-  // Secondary actions for the expanded dashboard
   const secondaryActions = [
     { name: 'analytics', icon: <BarChart2 className="h-4 w-4" />, label: 'Analytics', color: 'bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white' },
     { name: 'saved', icon: <Star className="h-4 w-4" />, label: 'Saved Routes', color: 'bg-gradient-to-r from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white' },
@@ -107,8 +100,8 @@ const Dashboard: React.FC<DashboardProps> = ({
   ];
   
   return (
-    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 rounded-xl shadow-md transition-all duration-300">
-      <div className="flex justify-between items-center mb-4">
+    <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 rounded-xl shadow-md transition-all duration-300">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <h2 className="text-lg font-semibold bg-gradient-to-r from-eco-dark to-eco bg-clip-text text-transparent">
           EcoRoute Dashboard
         </h2>
@@ -116,22 +109,24 @@ const Dashboard: React.FC<DashboardProps> = ({
           variant="ghost" 
           size="sm"
           onClick={() => setExpanded(!expanded)}
-          className="text-eco hover:text-eco-dark transition-colors"
+          className="text-eco hover:text-eco-dark transition-colors w-full sm:w-auto"
         >
           {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           <span className="ml-1 text-xs">{expanded ? 'Less' : 'More'}</span>
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-dashboard-gap mb-6">
         <Card 
-          className={`overflow-hidden transition-all duration-300 ${activeCard === 'eco' ? 'ring-2 ring-eco scale-[1.02]' : 'hover:shadow-md'}`}
+          className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
+            activeCard === 'eco' ? 'ring-2 ring-eco scale-[1.02]' : ''
+          }`}
           onMouseEnter={() => handleCardHover('eco')}
           onMouseLeave={handleCardLeave}
         >
-          <div className="h-1 bg-gradient-to-r from-eco-dark to-eco-light"></div>
-          <CardContent className="p-4 flex flex-col justify-center items-center text-center">
-            <Award className={`h-8 w-8 text-eco mb-2 ${activeCard === 'eco' ? 'animate-pulse' : ''}`} />
+          <div className="h-1 bg-gradient-to-r from-eco-dark to-eco-light" />
+          <CardContent className="p-card-padding flex flex-col justify-center items-center text-center animate-fade-in">
+            <Award className={`h-8 w-8 text-eco mb-2 ${activeCard === 'eco' ? 'animate-pulse-soft' : ''}`} />
             <h3 className="text-sm font-medium">Eco Score</h3>
             <div className={`text-2xl font-bold mt-1 ${ecoStatus.color}`}>
               {ecoScore}
@@ -141,7 +136,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
         
         <Card 
-          className={`overflow-hidden transition-all duration-300 ${activeCard === 'energy' ? 'ring-2 ring-tech scale-[1.02]' : 'hover:shadow-md'}`}
+          className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
+            activeCard === 'energy' ? 'ring-2 ring-tech scale-[1.02]' : ''
+          }`}
           onMouseEnter={() => handleCardHover('energy')}
           onMouseLeave={handleCardLeave}
         >
@@ -157,7 +154,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
         
         <Card 
-          className={`overflow-hidden transition-all duration-300 ${activeCard === 'battery' ? 'ring-2 ring-energy-medium scale-[1.02]' : 'hover:shadow-md'}`}
+          className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
+            activeCard === 'battery' ? 'ring-2 ring-energy-medium scale-[1.02]' : ''
+          }`}
           onMouseEnter={() => handleCardHover('battery')}
           onMouseLeave={handleCardLeave}
         >
@@ -182,7 +181,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
         
         <Card 
-          className={`overflow-hidden transition-all duration-300 ${activeCard === 'weather' ? 'ring-2 ring-tech-light scale-[1.02]' : 'hover:shadow-md'}`}
+          className={`overflow-hidden transition-all duration-300 hover:shadow-lg ${
+            activeCard === 'weather' ? 'ring-2 ring-tech-light scale-[1.02]' : ''
+          }`}
           onMouseEnter={() => handleCardHover('weather')}
           onMouseLeave={handleCardLeave}
         >
@@ -200,64 +201,62 @@ const Dashboard: React.FC<DashboardProps> = ({
         </Card>
       </div>
 
-      {/* Primary dashboard action buttons with more attractive styling */}
-      <div className="flex flex-wrap gap-2 mb-2">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-4">
         {primaryActions.map(action => (
           <Button 
             key={action.name}
-            className={`flex items-center gap-1 shadow-md transition-all duration-300 ${action.color}`}
+            className={`w-full sm:w-auto flex items-center gap-1 shadow-md transition-all duration-300 animate-fade-in ${action.color}`}
             onClick={() => handleActionClick(action.name)}
             disabled={action.name === 'navigate' && !selectedRoute}
           >
             {action.icon}
-            <span>{action.label}</span>
+            <span className="hidden sm:inline">{action.label}</span>
           </Button>
         ))}
       </div>
 
-      {/* Secondary dashboard action buttons with expanded view */}
       {expanded && (
-        <div className="flex flex-wrap gap-2 mb-4 animate-fade-in">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mb-4 animate-slide-up">
           {secondaryActions.map(action => (
             <Button 
               key={action.name}
               size="sm"
-              className={`flex items-center gap-1 shadow-sm transition-all duration-300 ${action.color}`}
+              className={`w-full sm:w-auto flex items-center gap-1 shadow-sm transition-all duration-300 ${action.color}`}
               onClick={() => handleActionClick(action.name)}
             >
               {action.icon}
-              <span>{action.label}</span>
+              <span className="hidden sm:inline">{action.label}</span>
             </Button>
           ))}
         </div>
       )}
 
-      {/* Range warning if battery is low */}
       {vehicle.batteryLevel < 20 && (
-        <div className="flex items-center gap-2 text-sm text-white p-3 bg-gradient-to-r from-energy-high to-red-500 rounded-md mb-4 animate-pulse shadow-md">
-          <AlertTriangle className="h-4 w-4" />
+        <div className="flex items-center gap-2 text-sm text-white p-4 bg-gradient-to-r from-energy-high to-red-500 rounded-md mb-4 animate-pulse-soft shadow-md">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
           <span className="font-medium">Low battery! Find a charging station soon.</span>
         </div>
       )}
       
-      {/* Selected route summary if a route is selected */}
       {selectedRoute && (
-        <div className="bg-white dark:bg-gray-800 p-3 rounded-md shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-2">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-md shadow-sm border border-gray-200 dark:border-gray-700 animate-scale-in">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3">
             <h3 className="text-sm font-medium text-eco-dark">Selected Route</h3>
-            <span className="text-xs bg-eco/10 text-eco px-2 py-1 rounded-full">{selectedRoute.name}</span>
+            <span className="text-xs bg-eco/10 text-eco px-3 py-1 rounded-full mt-2 sm:mt-0">
+              {selectedRoute.name}
+            </span>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-xs">
-            <div className="flex flex-col items-center p-1 bg-gray-50 dark:bg-gray-900 rounded">
-              <span className="text-muted-foreground">Distance</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <span className="text-xs text-muted-foreground">Distance</span>
               <span className="font-medium">{selectedRoute.distance} km</span>
             </div>
-            <div className="flex flex-col items-center p-1 bg-gray-50 dark:bg-gray-900 rounded">
-              <span className="text-muted-foreground">Time</span>
+            <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+              <span className="text-xs text-muted-foreground">Time</span>
               <span className="font-medium">{selectedRoute.duration} min</span>
             </div>
-            <div className="flex flex-col items-center p-1 bg-gray-50 dark:bg-gray-900 rounded">
-              <span className="text-muted-foreground">Energy</span>
+            <div className="flex flex-col items-center p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors col-span-2 sm:col-span-1">
+              <span className="text-xs text-muted-foreground">Energy</span>
               <span className="font-medium">{selectedRoute.energyUsage.toFixed(1)} kWh</span>
             </div>
           </div>

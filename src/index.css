@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -91,7 +90,7 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Roboto', sans-serif;
   }
 }
@@ -110,7 +109,7 @@
   }
   
   .dashboard-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 transition-all hover:shadow-lg;
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-md p-card-padding transition-all hover:shadow-lg animate-fade-in;
   }
 
   .eco-score {
@@ -146,8 +145,7 @@
 
 /* App-wide custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  @apply w-2;
 }
 
 ::-webkit-scrollbar-track {
@@ -156,4 +154,15 @@
 
 ::-webkit-scrollbar-thumb {
   @apply bg-eco bg-opacity-70 rounded-full hover:bg-opacity-100 transition-all;
+}
+
+/* Mobile optimization */
+@media (max-width: 640px) {
+  .container {
+    @apply px-4;
+  }
+  
+  .dashboard-card {
+    @apply p-4;
+  }
 }
