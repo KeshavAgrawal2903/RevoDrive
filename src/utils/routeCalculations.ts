@@ -1,10 +1,10 @@
-
 /**
  * EcoRoute Calculation Utility
  * Contains formulas and algorithms for energy prediction, route optimization, and eco-scoring
  */
 
 import { WeatherData, VehicleData } from '@/hooks/useMapData';
+import { calculateFuzzyEnergyMultiplier, calculateFuzzyEcoScore, determineChargingNeedFuzzy } from './fuzzyLogic';
 
 // Constants for energy calculations
 const CONSTANTS = {
@@ -44,7 +44,7 @@ const CONSTANTS = {
 
 /**
  * Calculate energy usage for a route based on distance, elevation, traffic and weather
- * Uses physics-based formulas for more accurate predictions
+ * Uses physics-based formulas with fuzzy logic for more accurate predictions
  */
 export const calculateEnergyUsage = (
   distance: number, // in km
@@ -68,6 +68,7 @@ export const calculateEnergyUsage = (
       break;
   }
   
+  // Calculate base energy usage
   let energyUsage = distance * baseEfficiency;
   
   // Add elevation impact (potential energy = mass * g * height)
@@ -77,26 +78,16 @@ export const calculateEnergyUsage = (
   // Add traffic impact (more energy used in stop-and-go traffic)
   energyUsage += trafficDelay * CONSTANTS.TRAFFIC_IMPACT;
   
-  // Apply weather impact multipliers
-  if (weather.condition.toLowerCase().includes('rain')) {
-    energyUsage *= CONSTANTS.RAIN_IMPACT;
-  } else if (weather.condition.toLowerCase().includes('snow')) {
-    energyUsage *= CONSTANTS.SNOW_IMPACT;
-  }
+  // Apply fuzzy logic multiplier based on environmental conditions
+  const fuzzyMultiplier = calculateFuzzyEnergyMultiplier(
+    weather.temperature, 
+    weather.windSpeed,
+    trafficDelay,
+    elevationGain
+  );
   
-  // Apply wind impact
-  if (weather.windSpeed > 20) {
-    energyUsage *= CONSTANTS.HIGH_WIND_IMPACT;
-  } else if (weather.windSpeed > 10) {
-    energyUsage *= CONSTANTS.MEDIUM_WIND_IMPACT;
-  }
-  
-  // Apply temperature impact
-  if (weather.temperature > 35) {
-    energyUsage *= CONSTANTS.HIGH_TEMP_IMPACT;
-  } else if (weather.temperature < 10) {
-    energyUsage *= CONSTANTS.LOW_TEMP_IMPACT;
-  }
+  // Apply the fuzzy multiplier to the energy usage
+  energyUsage *= fuzzyMultiplier;
   
   // Round to one decimal place
   return Math.round(energyUsage * 10) / 10;
@@ -112,51 +103,58 @@ export const calculateCO2Savings = (distance: number): number => {
 
 /**
  * Calculate eco-score (0-100) based on energy efficiency, speed, and route characteristics
+ * Now using fuzzy logic for more nuanced scoring
  */
 export const calculateEcoScore = (
   energyUsage: number,
   distance: number,
   elevationGain: number,
-  trafficDelay: number
+  trafficDelay: number,
+  weatherCondition: string = 'Clear'
 ): number => {
-  // Base efficiency score (lower energy usage per km is better)
+  // Calculate efficiency in kWh per km
   const efficiencyKWhPerKm = energyUsage / distance;
-  const efficiencyScore = Math.max(0, 100 - (efficiencyKWhPerKm * 250));
   
-  // Elevation penalty (high elevation changes reduce score)
-  const elevationPenalty = Math.min(15, elevationGain / 100);
-  
-  // Traffic penalty (more traffic reduces score)
-  const trafficPenalty = Math.min(10, trafficDelay);
-  
-  // Final score calculation
-  let score = efficiencyScore - elevationPenalty - trafficPenalty;
-  
-  // Ensure score is within 0-100 range
-  score = Math.max(0, Math.min(100, score));
-  
-  return Math.round(score);
+  // Use fuzzy logic to calculate a more nuanced eco score
+  return calculateFuzzyEcoScore(
+    efficiencyKWhPerKm,
+    elevationGain,
+    trafficDelay,
+    weatherCondition
+  );
 };
 
 /**
  * Calculate number of charging stops needed based on distance and vehicle range
+ * Now with fuzzy logic for better decision making
  */
 export const calculateChargingStops = (
   distance: number, 
   vehicleRange: number, 
+  batteryLevel: number = 100,
+  weatherCondition: string = 'Clear',
   safetyBuffer: number = 0.2 // 20% safety buffer
 ): number => {
   // If distance is within vehicle range with safety buffer, no stops needed
-  const effectiveRange = vehicleRange * (1 - safetyBuffer);
+  const effectiveRange = vehicleRange * (batteryLevel / 100) * (1 - safetyBuffer);
   
   if (distance <= effectiveRange) {
     return 0;
   }
   
-  // Calculate number of stops needed
+  // Apply fuzzy logic to handle uncertainty in range estimation
+  const weatherImpact = 
+    weatherCondition.toLowerCase().includes('rain') ? 0.9 :
+    weatherCondition.toLowerCase().includes('snow') ? 0.8 :
+    weatherCondition.toLowerCase().includes('wind') ? 0.85 : 1.0;
+  
+  // Adjust effective range based on weather
+  const weatherAdjustedRange = effectiveRange * weatherImpact;
+  
+  // Calculate number of stops needed with weather adjustment
   // Formula: stops = ceil(distance / effectiveRange) - 1
   // Subtract 1 because we don't count the final destination as a charging stop
-  return Math.ceil(distance / effectiveRange) - 1;
+  return Math.ceil(distance / weatherAdjustedRange) - 1;
 };
 
 /**
@@ -196,8 +194,8 @@ export const calculateCostSavings = (
 };
 
 /**
- * Calculate energy usage based on various factors
- * More detailed calculation for energy prediction component
+ * Calculate detailed energy usage based on various factors
+ * More detailed calculation for energy prediction component with fuzzy logic
  */
 export const calculateDetailedEnergyUsage = (
   distance: number,
@@ -207,7 +205,7 @@ export const calculateDetailedEnergyUsage = (
   weather: WeatherData,
   routeType: 'eco' | 'fast' | 'balanced' = 'balanced'
 ) => {
-  // Base calculation
+  // Base calculation with fuzzy logic
   let energyUsage = calculateEnergyUsage(distance, elevationGain, trafficDelay, weather, routeType);
   
   // Calculate individual components for detailed breakdown
@@ -215,31 +213,17 @@ export const calculateDetailedEnergyUsage = (
   const elevationEnergy = elevationGain * CONSTANTS.ELEVATION_FACTOR; // kWh for climbing
   const trafficEnergy = trafficDelay * CONSTANTS.TRAFFIC_IMPACT; // kWh for traffic
   
-  // Weather factors
-  let weatherMultiplier = 1;
-  if (weather.condition.toLowerCase().includes('rain')) {
-    weatherMultiplier = CONSTANTS.RAIN_IMPACT;
-  } else if (weather.condition.toLowerCase().includes('snow')) {
-    weatherMultiplier = CONSTANTS.SNOW_IMPACT;
-  }
+  // Apply fuzzy logic for weather impact calculation
+  const fuzzyMultiplier = calculateFuzzyEnergyMultiplier(
+    weather.temperature, 
+    weather.windSpeed,
+    trafficDelay,
+    elevationGain
+  );
   
-  // Wind impact
-  let windMultiplier = 1;
-  if (weather.windSpeed > 20) {
-    windMultiplier = CONSTANTS.HIGH_WIND_IMPACT;
-  } else if (weather.windSpeed > 10) {
-    windMultiplier = CONSTANTS.MEDIUM_WIND_IMPACT;
-  }
-  
-  // Temperature impact
-  let tempMultiplier = 1;
-  if (weather.temperature > 35) {
-    tempMultiplier = CONSTANTS.HIGH_TEMP_IMPACT;
-  } else if (weather.temperature < 10) {
-    tempMultiplier = CONSTANTS.LOW_TEMP_IMPACT;
-  }
-  
-  const weatherEnergy = baseEnergy * (Math.max(weatherMultiplier, windMultiplier, tempMultiplier) - 1);
+  // Calculate weather impact as the additional energy from fuzzy multiplier
+  const weatherImpact = fuzzyMultiplier - 1.0;
+  const weatherEnergy = baseEnergy * weatherImpact;
   
   // Climate control energy (heating/cooling)
   const climateControlEnergy = (weather.temperature > 30 || weather.temperature < 15) 

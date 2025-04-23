@@ -13,6 +13,7 @@ import {
   LineChart
 } from 'lucide-react';
 import { RouteOption, VehicleData, WeatherData } from '@/hooks/useMapData';
+import { determineChargingNeedFuzzy } from '@/utils/fuzzyLogic';
 
 interface EnergyPredictionProps {
   selectedRoute: RouteOption | null;
@@ -27,14 +28,21 @@ const EnergyPrediction: React.FC<EnergyPredictionProps> = ({
 }) => {
   if (!selectedRoute) return null;
   
-  // Calculate predicted arrival battery using physics-based formula
+  // Calculate predicted arrival battery using physics-based formula with fuzzy logic
   const estimatedEnergyUsage = selectedRoute.energyUsage;
   const currentEnergyAvailable = (vehicle.batteryLevel / 100) * vehicle.maxBatteryCapacity;
   const remainingEnergy = currentEnergyAvailable - estimatedEnergyUsage;
   const arrivalBatteryPercentage = Math.max(0, Math.round((remainingEnergy / vehicle.maxBatteryCapacity) * 100));
   
-  // Calculate if charging is needed
-  const chargingNeeded = arrivalBatteryPercentage < 20;
+  // Use fuzzy logic to determine if charging is needed
+  const chargingInfo = determineChargingNeedFuzzy(
+    vehicle.batteryLevel,
+    selectedRoute.distance,
+    estimatedEnergyUsage / vehicle.maxBatteryCapacity * 100,
+    weather.condition
+  );
+  const chargingNeeded = chargingInfo.needed;
+  const chargingConfidence = chargingInfo.confidence;
   
   // Energy usage breakdown based on physics formulas and real-world factors
   // Elevation: energy = mass * g * height (potential energy)

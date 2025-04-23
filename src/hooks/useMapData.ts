@@ -5,6 +5,7 @@ import {
   calculateEcoScore,
   calculateChargingStops
 } from '@/utils/routeCalculations';
+import { calculateFuzzyEnergyMultiplier } from '@/utils/fuzzyLogic';
 
 // Hardcoded Mapbox API key
 const MAPBOX_API_KEY = 'pk.eyJ1Ijoia2VzaGF2LXNybSIsImEiOiJjbTljYjFtOWEwZ2VmMm9xdzBoZGZqazZwIn0.l16befAq12p5KdoD2DbTcw';
@@ -227,7 +228,7 @@ const getNearbyChargingStations = async (lat: number, lng: number, radius: numbe
 // Calculate routes between locations using Mapbox Directions API
 const calculateRoutes = async (start: Location, end: Location): Promise<RouteOption[]> => {
   try {
-    console.log('Finding routes with accurate calculations...');
+    console.log('Finding routes with accurate calculations using fuzzy logic...');
     
     // In a real app, you would use the actual Mapbox Directions API here
     // For now, we'll simulate the API call and generate realistic data
@@ -253,6 +254,8 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
     const ecoRouteDistance = Math.round((distance * 1.1) * 10) / 10; // 10% longer than direct
     const ecoRouteElevationGain = Math.floor(Math.random() * 50 + 40);
     const ecoRouteTrafficDelay = Math.floor(Math.random() * 5 + 1);
+    
+    // Apply fuzzy logic to energy calculation
     const ecoRouteEnergyUsage = calculateEnergyUsage(
       ecoRouteDistance, 
       ecoRouteElevationGain, 
@@ -260,17 +263,21 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
       weather, 
       'eco'
     );
+    
     const ecoRouteCO2Saved = calculateCO2Savings(ecoRouteDistance);
     const ecoRouteScore = calculateEcoScore(
       ecoRouteEnergyUsage,
       ecoRouteDistance,
       ecoRouteElevationGain,
-      ecoRouteTrafficDelay
+      ecoRouteTrafficDelay,
+      weather.condition
     );
     
     const fastRouteDistance = Math.round(distance * 10) / 10; // Direct route
     const fastRouteElevationGain = Math.floor(Math.random() * 70 + 60);
     const fastRouteTrafficDelay = Math.floor(Math.random() * 8 + 2);
+    
+    // Apply fuzzy logic for fast route
     const fastRouteEnergyUsage = calculateEnergyUsage(
       fastRouteDistance, 
       fastRouteElevationGain, 
@@ -278,17 +285,21 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
       weather, 
       'fast'
     );
+    
     const fastRouteCO2Saved = calculateCO2Savings(fastRouteDistance);
     const fastRouteScore = calculateEcoScore(
       fastRouteEnergyUsage,
       fastRouteDistance,
       fastRouteElevationGain,
-      fastRouteTrafficDelay
+      fastRouteTrafficDelay,
+      weather.condition
     );
     
     const balancedRouteDistance = Math.round((distance * 1.05) * 10) / 10; // 5% longer than direct
     const balancedRouteElevationGain = Math.floor(Math.random() * 60 + 50);
     const balancedRouteTrafficDelay = Math.floor(Math.random() * 6 + 1);
+    
+    // Apply fuzzy logic for balanced route
     const balancedRouteEnergyUsage = calculateEnergyUsage(
       balancedRouteDistance, 
       balancedRouteElevationGain, 
@@ -296,12 +307,14 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
       weather, 
       'balanced'
     );
+    
     const balancedRouteCO2Saved = calculateCO2Savings(balancedRouteDistance);
     const balancedRouteScore = calculateEcoScore(
       balancedRouteEnergyUsage,
       balancedRouteDistance,
       balancedRouteElevationGain,
-      balancedRouteTrafficDelay
+      balancedRouteTrafficDelay,
+      weather.condition
     );
     
     // Assume we have a vehicle with range of 300km
@@ -318,7 +331,12 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
         ecoScore: ecoRouteScore,
         elevationGain: ecoRouteElevationGain,
         trafficDelay: ecoRouteTrafficDelay,
-        chargingStops: calculateChargingStops(ecoRouteDistance, mockVehicleRange),
+        chargingStops: calculateChargingStops(
+          ecoRouteDistance, 
+          mockVehicleRange, 
+          100, 
+          weather.condition
+        ),
         updatedAt: new Date(),
       },
       {
@@ -331,7 +349,12 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
         ecoScore: fastRouteScore,
         elevationGain: fastRouteElevationGain,
         trafficDelay: fastRouteTrafficDelay,
-        chargingStops: calculateChargingStops(fastRouteDistance, mockVehicleRange),
+        chargingStops: calculateChargingStops(
+          fastRouteDistance, 
+          mockVehicleRange, 
+          100,
+          weather.condition
+        ),
         updatedAt: new Date(),
       },
       {
@@ -344,7 +367,12 @@ const calculateRoutes = async (start: Location, end: Location): Promise<RouteOpt
         ecoScore: balancedRouteScore,
         elevationGain: balancedRouteElevationGain,
         trafficDelay: balancedRouteTrafficDelay,
-        chargingStops: calculateChargingStops(balancedRouteDistance, mockVehicleRange),
+        chargingStops: calculateChargingStops(
+          balancedRouteDistance, 
+          mockVehicleRange,
+          100,
+          weather.condition
+        ),
         updatedAt: new Date(),
       }
     ];
