@@ -50,7 +50,7 @@
   }
 
   * {
-    @apply border-border selection:bg-white/10 selection:text-white;
+    @apply border-border selection:bg-white/20 selection:text-white;
   }
   
   body {
@@ -109,19 +109,96 @@
   .glow-effect {
     @apply hover:shadow-lg hover:shadow-revo/20 transition-all duration-300;
   }
+
+  /* New components for enhanced dashboard */
+  .interactive-card {
+    @apply relative overflow-hidden transition-all duration-300 hover:transform hover:scale-[1.02] bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-xl shadow-lg hover:shadow-xl;
+  }
+  
+  .interactive-button {
+    @apply relative overflow-hidden transition-all duration-300 bg-gradient-to-r border shadow-md hover:shadow-lg active:scale-95;
+  }
+
+  .interactive-stat {
+    @apply flex flex-col items-center p-4 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 group;
+  }
+  
+  .stat-icon {
+    @apply p-2 rounded-full mb-2 transition-all duration-300 group-hover:scale-110;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r bg-clip-text text-transparent;
+  }
+  
+  .gradient-separator {
+    @apply h-1 w-full bg-gradient-to-r;
+  }
+  
+  .floating-decoration {
+    @apply absolute rounded-full blur-xl animate-pulse-soft;
+  }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  @apply w-2;
+  @apply w-1.5;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-secondary rounded-full;
+  @apply bg-secondary/50 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb {
   @apply bg-primary/60 rounded-full hover:bg-primary transition-colors;
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Enhanced animations */
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  50% { transform: translateY(-8px) rotate(2deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(33, 134, 235, 0.3); }
+  50% { box-shadow: 0 0 15px rgba(33, 134, 235, 0.6); }
+}
+
+@keyframes color-cycle {
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.animate-color-cycle {
+  animation: color-cycle 10s linear infinite;
+}
+
+.gradient-animate {
+  background-size: 200% 200%;
+  animation: gradient-flow 5s ease infinite;
 }
 
 /* Mobile optimizations */

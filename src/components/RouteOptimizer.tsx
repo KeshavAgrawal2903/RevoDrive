@@ -43,7 +43,10 @@ import {
   Search,
   MapPin,
   Navigation,
-  LocateFixed
+  LocateFixed,
+  Sparkles,
+  LayoutDashboard,
+  ArrowUpRight
 } from 'lucide-react';
 
 interface RouteOptimizerProps {
@@ -78,6 +81,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
   const [selectedEnd, setSelectedEnd] = useState<Location | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
+  const [activeCard, setActiveCard] = useState<string | null>(null);
   const { toast } = useToast();
   
   const { 
@@ -171,6 +175,19 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     return 'text-energy-high';
   };
   
+  const getRouteGradient = (routeId: string) => {
+    switch (routeId) {
+      case 'eco-route':
+        return 'from-energy-low/80 to-energy-low';
+      case 'fast-route':
+        return 'from-energy-high/80 to-energy-high';
+      case 'balanced-route':
+        return 'from-tech-light/80 to-tech';
+      default:
+        return 'from-revo-light/80 to-revo';
+    }
+  };
+  
   const handleFindRoute = () => {
     if (!selectedStart || !selectedEnd) {
       toast({
@@ -242,24 +259,46 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     });
   };
 
+  const handleCardHover = (routeId: string) => {
+    setActiveCard(routeId);
+  };
+
+  const handleCardLeave = () => {
+    setActiveCard(null);
+  };
+
   return (
-    <div className="space-y-4">
-      <Card>
+    <div className="space-y-6">
+      <Card className="overflow-hidden backdrop-blur-xl border border-white/20 shadow-xl bg-gradient-to-br from-white/5 to-white/10">
+        <div className="h-1 w-full bg-gradient-to-r from-revo via-tech to-energy-low"></div>
         <CardHeader className="pb-2">
           <CardTitle className="text-lg font-semibold flex items-center">
-            <Map className="mr-2 h-5 w-5 text-eco" />
-            Route Planning
+            <div className="bg-gradient-to-r from-tech to-tech-light rounded-full p-1.5 mr-2">
+              <Map className="h-5 w-5 text-white" />
+            </div>
+            <span className="bg-gradient-to-r from-revo to-tech-light bg-clip-text text-transparent">
+              Route Planning
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="space-y-5 relative">
+            {/* Animated decorative element */}
+            <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-revo/20 to-tech-light/10 rounded-full blur-3xl animate-pulse-soft"></div>
+            <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-gradient-to-br from-energy-low/20 to-energy-medium/10 rounded-full blur-3xl animate-pulse-soft"></div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
               <div className="space-y-2">
-                <Label htmlFor="start" className="text-sm">Starting Point</Label>
+                <Label htmlFor="start" className="text-sm flex items-center gap-1.5 font-medium">
+                  <MapPin className="h-3.5 w-3.5 text-revo" />
+                  Starting Point
+                </Label>
                 {useCurrentLocation ? (
-                  <div className="flex items-center space-x-2 border rounded-md p-2 bg-muted/50">
-                    <LocateFixed className="h-4 w-4 text-eco" />
-                    <span className="text-sm">Using Current Location</span>
+                  <div className="flex items-center space-x-2 p-3 rounded-xl border border-white/10 bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-md shadow-md">
+                    <div className="bg-revo/20 p-1.5 rounded-full animate-pulse-soft">
+                      <LocateFixed className="h-4 w-4 text-revo" />
+                    </div>
+                    <span className="text-sm font-medium">Using Current Location</span>
                   </div>
                 ) : (
                   <Popover open={startOpen} onOpenChange={setStartOpen}>
@@ -268,7 +307,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
                         variant="outline"
                         role="combobox"
                         aria-expanded={startOpen}
-                        className="w-full justify-between"
+                        className="w-full justify-between border-white/20 bg-white/5 backdrop-blur-md hover:bg-white/10 transition-all duration-300"
                       >
                         {selectedStart ? (
                           <span className="truncate">{selectedStart.name}</span>
@@ -278,7 +317,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
                         <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0">
+                    <PopoverContent className="w-[300px] p-0 border border-white/20 bg-card/95 backdrop-blur-lg">
                       <Command>
                         <CommandInput
                           placeholder="Search location..."
@@ -321,14 +360,17 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="end" className="text-sm">Destination</Label>
+                <Label htmlFor="end" className="text-sm flex items-center gap-1.5 font-medium">
+                  <MapPin className="h-3.5 w-3.5 text-energy-high" />
+                  Destination
+                </Label>
                 <Popover open={endOpen} onOpenChange={setEndOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       aria-expanded={endOpen}
-                      className="w-full justify-between"
+                      className="w-full justify-between border-white/20 bg-white/5 backdrop-blur-md hover:bg-white/10 transition-all duration-300"
                     >
                       {selectedEnd ? (
                         <span className="truncate">{selectedEnd.name}</span>
@@ -338,7 +380,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
                       <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[300px] p-0">
+                  <PopoverContent className="w-[300px] p-0 border border-white/20 bg-card/95 backdrop-blur-lg">
                     <Command>
                       <CommandInput
                         placeholder="Search location..."
@@ -380,31 +422,40 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-3 rounded-xl border border-white/10 bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-md">
               <div className="flex items-center space-x-2">
                 <Switch
                   id="renewable"
                   checked={prioritizeRenewable}
                   onCheckedChange={setPrioritizeRenewable}
                 />
-                <Label htmlFor="renewable" className="text-sm">Prioritize Renewable Charging</Label>
+                <Label htmlFor="renewable" className="text-sm flex items-center">
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5 text-energy-medium" />
+                  Prioritize Renewable Charging
+                </Label>
               </div>
               
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="sm"
                 onClick={() => setShowAdvanced(!showAdvanced)}
+                className="border border-white/10 bg-white/5 hover:bg-white/10"
               >
                 {showAdvanced ? 'Hide' : 'Advanced'} Options
               </Button>
             </div>
             
             {showAdvanced && (
-              <div className="pt-2 space-y-4 border-t">
-                <div className="space-y-2">
+              <div className="pt-4 space-y-5 border-t border-white/10 animate-slide-in-bottom">
+                <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <Label htmlFor="eco-emphasis" className="text-sm">Eco-Efficiency Emphasis</Label>
-                    <span className="text-xs font-medium">{ecoEmphasis}%</span>
+                    <Label htmlFor="eco-emphasis" className="text-sm flex items-center font-medium">
+                      <Zap className="h-3.5 w-3.5 mr-1.5 text-revo" />
+                      Eco-Efficiency Emphasis
+                    </Label>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-revo/20 text-revo">
+                      {ecoEmphasis}%
+                    </span>
                   </div>
                   <Slider
                     id="eco-emphasis"
@@ -413,34 +464,41 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
                     step={5}
                     value={[ecoEmphasis]}
                     onValueChange={(value) => setEcoEmphasis(value[0])}
-                    className="py-2"
+                    className="py-3"
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Speed Priority</span>
-                    <span>Energy Priority</span>
+                  <div className="flex justify-between text-xs">
+                    <span className="bg-energy-high/20 text-energy-high px-2 py-0.5 rounded-md">Speed Priority</span>
+                    <span className="bg-energy-low/20 text-energy-low px-2 py-0.5 rounded-md">Energy Priority</span>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="vehicle-type" className="text-xs">Vehicle Type</Label>
-                    <div className="flex items-center space-x-2 text-sm border p-1.5 rounded-md bg-muted/30">
-                      <Car className="h-3.5 w-3.5" />
-                      <span className="truncate">{vehicle.name}</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2 p-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+                    <Label htmlFor="vehicle-type" className="text-xs text-muted-foreground">Vehicle Type</Label>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <div className="bg-revo/20 p-1.5 rounded-full">
+                        <Car className="h-4 w-4 text-revo" />
+                      </div>
+                      <span className="font-medium">{vehicle.name}</span>
                     </div>
                   </div>
                   
-                  <div className="space-y-1">
-                    <Label htmlFor="battery-level" className="text-xs">Battery Level</Label>
-                    <div className="flex items-center space-x-2 text-sm border p-1.5 rounded-md bg-muted/30">
-                      <Zap className="h-3.5 w-3.5" />
-                      <span>{vehicle.batteryLevel}%</span>
-                      <div className="ml-auto w-12 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full rounded-full bg-eco" 
-                          style={{ width: `${vehicle.batteryLevel}%` }}
-                        />
+                  <div className="space-y-2 p-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md">
+                    <Label htmlFor="battery-level" className="text-xs text-muted-foreground">Battery Level</Label>
+                    <div className="flex items-center space-x-2 text-sm">
+                      <div className="bg-revo/20 p-1.5 rounded-full">
+                        <Zap className="h-4 w-4 text-revo" />
                       </div>
+                      <span className="font-medium">{vehicle.batteryLevel}%</span>
+                      <Progress 
+                        value={vehicle.batteryLevel} 
+                        className="h-1.5 ml-auto w-16"
+                        indicatorClassName={
+                          vehicle.batteryLevel > 70 ? "bg-energy-low" :
+                          vehicle.batteryLevel > 30 ? "bg-energy-medium" :
+                          "bg-energy-high"
+                        }
+                      />
                     </div>
                   </div>
                 </div>
@@ -449,106 +507,141 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
             
             <Button 
               onClick={handleFindRoute}
-              className="w-full bg-eco hover:bg-eco-dark"
+              className="w-full relative overflow-hidden group transition-all duration-300"
               disabled={isLoading || refreshing || !selectedEnd || (useCurrentLocation ? !currentLocation : !selectedStart)}
             >
-              {isLoading || refreshing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                  Calculating Routes...
-                </>
-              ) : 'Find Best Route'}
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-energy-low via-revo to-energy-medium opacity-80 group-hover:opacity-100 transition-opacity"></div>
+              <span className="relative flex items-center justify-center gap-2 text-white font-medium">
+                {isLoading || refreshing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Calculating Routes...
+                  </>
+                ) : (
+                  <>
+                    <LayoutDashboard className="h-4 w-4" />
+                    Find Best Route
+                  </>
+                )}
+              </span>
             </Button>
           </div>
         </CardContent>
       </Card>
       
       {routes.length > 0 && (
-        <Card>
+        <Card className="overflow-hidden backdrop-blur-xl border border-white/20 shadow-xl bg-gradient-to-br from-white/5 to-white/10">
+          <div className="h-1 w-full bg-gradient-to-r from-energy-low via-revo to-tech"></div>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-semibold flex items-center justify-between">
               <div className="flex items-center">
-                <CornerDownRight className="mr-2 h-5 w-5 text-eco" />
-                Route Options
+                <div className="bg-gradient-to-r from-revo to-tech rounded-full p-1.5 mr-2">
+                  <CornerDownRight className="h-5 w-5 text-white" />
+                </div>
+                <span className="bg-gradient-to-r from-revo to-tech bg-clip-text text-transparent">
+                  Route Options
+                </span>
               </div>
-              <span className="text-xs bg-eco/10 text-eco px-2 py-0.5 rounded-md">
+              <span className="text-xs bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20">
                 {routes.length} routes found
               </span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-4">
               {routes.map((route) => (
                 <div
                   key={route.id}
-                  className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                  className={`border rounded-xl p-4 cursor-pointer transition-all duration-300 hover:shadow-lg backdrop-blur-md ${
                     selectedRoute?.id === route.id
-                      ? 'border-eco bg-eco/5'
-                      : 'hover:border-eco/50'
-                  }`}
+                      ? 'border-revo/50 shadow-md shadow-revo/10 bg-white/10'
+                      : 'border-white/10 bg-white/5 hover:border-white/30'
+                  } ${activeCard === route.id ? 'transform scale-[1.02]' : ''}`}
                   onClick={() => handleRouteSelect(route)}
+                  onMouseEnter={() => handleCardHover(route.id)}
+                  onMouseLeave={handleCardLeave}
                 >
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="font-medium">{route.name}</h4>
-                    <div className={`eco-score flex items-center gap-1 ${getEcoScoreColor(route.ecoScore)}`}>
-                      <span className="text-xs bg-muted px-1 rounded">Score</span>
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-medium flex items-center">
+                      <div className={`p-1.5 rounded-lg bg-${route.id === 'eco-route' ? 'energy-low' : route.id === 'fast-route' ? 'energy-high' : 'tech'}/20 mr-2`}>
+                        {route.id === 'eco-route' ? (
+                          <Sparkles className="h-4 w-4 text-energy-low" />
+                        ) : route.id === 'fast-route' ? (
+                          <ArrowUpRight className="h-4 w-4 text-energy-high" />
+                        ) : (
+                          <Navigation className="h-4 w-4 text-tech" />
+                        )}
+                      </div>
+                      {route.name}
+                    </h4>
+                    <div className={`eco-score flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
+                      route.ecoScore >= 85 ? 'bg-energy-low/20 text-energy-low' :
+                      route.ecoScore >= 70 ? 'bg-energy-medium/20 text-energy-medium' :
+                      'bg-energy-high/20 text-energy-high'
+                    }`}>
+                      <span className="text-xs font-medium">Score</span>
                       <span className="font-bold">{route.ecoScore}</span>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2 text-sm mb-2">
-                    <div className="flex items-center space-x-1">
-                      <Zap className="h-3.5 w-3.5 text-energy-medium" />
-                      <span>{route.energyUsage} kWh</span>
+                  <div className="grid grid-cols-3 gap-4 text-sm mb-3">
+                    <div className="flex flex-col items-center p-2.5 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
+                      <div className="flex items-center justify-center mb-1 bg-energy-medium/20 p-1.5 rounded-full">
+                        <Zap className="h-3.5 w-3.5 text-energy-medium" />
+                      </div>
+                      <span className="font-medium text-xs">{route.energyUsage} kWh</span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{route.duration} min</span>
+                    
+                    <div className="flex flex-col items-center p-2.5 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
+                      <div className="flex items-center justify-center mb-1 bg-revo/20 p-1.5 rounded-full">
+                        <Clock className="h-3.5 w-3.5 text-revo" />
+                      </div>
+                      <span className="font-medium text-xs">{route.duration} min</span>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <Droplets className="h-3.5 w-3.5 text-tech" />
-                      <span>{route.co2Saved} kg saved</span>
+                    
+                    <div className="flex flex-col items-center p-2.5 rounded-lg bg-white/5 backdrop-blur-sm border border-white/10">
+                      <div className="flex items-center justify-center mb-1 bg-tech/20 p-1.5 rounded-full">
+                        <Droplets className="h-3.5 w-3.5 text-tech" />
+                      </div>
+                      <span className="font-medium text-xs">{route.co2Saved} kg</span>
                     </div>
                   </div>
                   
                   {selectedRoute?.id === route.id && (
-                    <div className="mt-2 pt-2 border-t text-xs text-muted-foreground grid grid-cols-2 gap-x-4 gap-y-1">
-                      <div className="flex items-center space-x-1">
-                        <Timer className="h-3 w-3" />
-                        <span>Traffic: +{route.trafficDelay} min</span>
+                    <div className="mt-3 pt-3 border-t border-white/10 text-xs grid grid-cols-2 gap-x-4 gap-y-2 animate-fade-in bg-white/5 p-3 rounded-lg">
+                      <div className="flex items-center space-x-2">
+                        <Timer className="h-3 w-3 text-revo" />
+                        <span>Traffic: <span className="font-medium">+{route.trafficDelay} min</span></span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <ArrowRight className="h-3 w-3" />
-                        <span>Distance: {route.distance} km</span>
+                      <div className="flex items-center space-x-2">
+                        <ArrowRight className="h-3 w-3 text-energy-medium" />
+                        <span>Distance: <span className="font-medium">{route.distance} km</span></span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <ChevronRight className="h-3 w-3 rotate-90" />
-                        <span>Elevation: {route.elevationGain} m</span>
+                      <div className="flex items-center space-x-2">
+                        <ChevronRight className="h-3 w-3 rotate-90 text-tech" />
+                        <span>Elevation: <span className="font-medium">{route.elevationGain} m</span></span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <Zap className="h-3 w-3" />
-                        <span>Charging Stops: {route.chargingStops}</span>
+                      <div className="flex items-center space-x-2">
+                        <Zap className="h-3 w-3 text-energy-low" />
+                        <span>Charging Stops: <span className="font-medium">{route.chargingStops}</span></span>
                       </div>
                     </div>
                   )}
                   
-                  {/* Add navigate button for each route */}
-                  <div className="mt-2 pt-2 border-t flex">
+                  <div className="mt-3 pt-3 border-t border-white/10 flex">
                     <Button 
-                      size="sm" 
                       variant="outline"
-                      className={`${
-                        route.id === 'eco-route' ? 'bg-eco/10 hover:bg-eco/20 text-eco' :
-                        route.id === 'fast-route' ? 'bg-red-500/10 hover:bg-red-500/20 text-red-500' :
-                        'bg-purple-500/10 hover:bg-purple-500/20 text-purple-500'
-                      } ml-auto`}
+                      className={`ml-auto px-4 group relative overflow-hidden`}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleNavigate(route);
                       }}
                     >
-                      <Navigation className="h-3.5 w-3.5 mr-1" />
-                      Navigate
+                      <div className={`absolute inset-0 w-full h-full bg-gradient-to-r ${getRouteGradient(route.id)} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                      <span className="relative flex items-center gap-1.5 group-hover:text-white transition-colors">
+                        <Navigation className="h-3.5 w-3.5" />
+                        Navigate
+                      </span>
                     </Button>
                   </div>
                 </div>
