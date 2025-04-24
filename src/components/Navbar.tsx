@@ -1,19 +1,17 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { 
-  Battery,
-  Map, 
-  BarChart2, 
-  Settings, 
-  Sun, 
+  Zap,
+  Map,
+  BarChart2,
+  Settings,
+  Sun,
   Moon,
   Info,
-  Zap,
   LogOut,
   User,
   ChevronDown,
-  IndianRupee,
+  Battery,
   Star
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -65,92 +63,61 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onTabChange }) => {
   };
 
   return (
-    <header className="border-b border-border sticky top-0 z-10 bg-background/80 backdrop-blur-sm">
-      <div className="container flex justify-between items-center py-3">
-        <div className="flex items-center space-x-2">
-          <Zap className="h-6 w-6 text-eco" />
-          <h1 className="text-xl font-bold">GreenDrive</h1>
-          <span className="text-xs bg-eco/20 text-eco px-2 py-0.5 rounded-full hidden sm:inline-block">
-            India
+    <header className="sticky top-0 z-10 backdrop-blur-md bg-background/80 border-b border-border">
+      <div className="container flex justify-between items-center py-4">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            <Zap className="h-6 w-6 text-primary animate-pulse-soft" />
+            <h1 className="text-xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
+              RevoDrive
+            </h1>
+          </div>
+          <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full hidden sm:inline-block">
+            Beta
           </span>
         </div>
         
         <TooltipProvider>
           <nav className="hidden md:flex items-center space-x-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={() => handleMenuClick('Map')}
-                >
-                  <Map className="h-4 w-4" />
-                  <span>Map</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>View Map</TooltipContent>
-            </Tooltip>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="nav-link"
+              onClick={() => onTabChange?.('Map')}
+            >
+              <Map className="h-4 w-4" />
+              <span>Navigation</span>
+            </Button>
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={() => handleMenuClick('Stations')}
-                >
-                  <Battery className="h-4 w-4" />
-                  <span>Stations</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Charging Stations</TooltipContent>
-            </Tooltip>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="nav-link"
+              onClick={() => onTabChange?.('Stations')}
+            >
+              <Battery className="h-4 w-4" />
+              <span>Charging</span>
+            </Button>
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={() => handleMenuClick('Analytics')}
-                >
-                  <BarChart2 className="h-4 w-4" />
-                  <span>Analytics</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Energy Analytics</TooltipContent>
-            </Tooltip>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="nav-link"
+              onClick={() => onTabChange?.('Analytics')}
+            >
+              <BarChart2 className="h-4 w-4" />
+              <span>Analytics</span>
+            </Button>
             
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={() => handleMenuClick('Saved')}
-                >
-                  <Star className="h-4 w-4" />
-                  <span>Saved</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Saved Routes</TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="flex items-center gap-1"
-                  onClick={() => handleMenuClick('Savings')}
-                >
-                  <IndianRupee className="h-4 w-4" />
-                  <span>Savings</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Cost Savings</TooltipContent>
-            </Tooltip>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="nav-link"
+              onClick={() => onTabChange?.('Saved')}
+            >
+              <Star className="h-4 w-4" />
+              <span>Saved</span>
+            </Button>
           </nav>
         </TooltipProvider>
         
@@ -158,8 +125,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onTabChange }) => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="rounded-full"
           >
             {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </Button>
@@ -167,10 +134,10 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onTabChange }) => {
           <Button
             variant="ghost"
             size="icon"
-            aria-label="About"
+            className="rounded-full"
             onClick={() => toast({
-              title: "About EcoRoute AI",
-              description: "An intelligent route planner for EV drivers in India. Find the most energy-efficient routes, charging stations, and track your savings.",
+              title: "About RevoDrive",
+              description: "Next-generation route planning for electric vehicles. Optimizing your journey with AI.",
               duration: 5000,
             })}
           >
@@ -180,27 +147,26 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onTabChange }) => {
           {user && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1">
+                <Button variant="outline" size="sm" className="rounded-full gap-2">
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline-block max-w-[100px] truncate">{user.name}</span>
+                  <span className="hidden sm:inline-block max-w-[100px] truncate">
+                    {user.name}
+                  </span>
                   <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleMenuClick('Profile')}>
+                <DropdownMenuItem onClick={() => onTabChange?.('Profile')}>
                   <User className="h-4 w-4 mr-2" /> Profile
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleMenuClick('Saved')}>
-                  <Star className="h-4 w-4 mr-2" /> Saved Routes
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleMenuClick('Settings')}>
-                  <Settings className="h-4 w-4 mr-2" /> Settings
+                <DropdownMenuItem onClick={() => onTabChange?.('Settings')}>
+                  <Settings className="h-4 w-4 mr-2" /> Preferences
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onLogout}>
-                  <LogOut className="h-4 w-4 mr-2" /> Logout
+                <DropdownMenuItem onClick={onLogout} className="text-destructive">
+                  <LogOut className="h-4 w-4 mr-2" /> Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -1,86 +1,69 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 220 100% 98%;
+    --foreground: 220 10% 4%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 10% 4%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 220 10% 4%;
 
-    --primary: 142 76% 36%;
-    --primary-foreground: 355.7 100% 97.3%;
+    --primary: 214 84% 56%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 220 10% 4%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 220 10% 4%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 142 76% 36%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 214 84% 56%;
 
-    --radius: 0.5rem;
-
-    --sidebar-background: 120 30% 96%;
-    --sidebar-foreground: 120 6% 20%;
-    --sidebar-primary: 142 76% 36%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 15% 93%;
-    --sidebar-accent-foreground: 120 6% 20%;
-    --sidebar-border: 120 15% 90%;
-    --sidebar-ring: 142 76% 36%;
+    --radius: 0.75rem;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    --background: 220 10% 4%;
+    --foreground: 210 40% 98%;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --card: 220 10% 4%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 220 10% 4%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 142 70% 36%;
-    --primary-foreground: 144.9 80.4% 10%;
+    --primary: 214 84% 56%;
+    --primary-foreground: 220 10% 4%;
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 220 10% 8%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 220 10% 8%;
+    --muted-foreground: 220 10% 46%;
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 220 10% 8%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 142 76% 36%;
-    
-    --sidebar-background: 120 15% 8%;
-    --sidebar-foreground: 120 10% 85%;
-    --sidebar-primary: 142 70% 36%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 10% 12%;
-    --sidebar-accent-foreground: 120 10% 85%;
-    --sidebar-border: 120 10% 15%;
-    --sidebar-ring: 142 76% 36%;
+    --border: 220 10% 8%;
+    --input: 220 10% 8%;
+    --ring: 214 84% 56%;
   }
 }
 
@@ -88,81 +71,66 @@
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
 
 @layer components {
-  .eco-gradient {
-    @apply bg-gradient-to-r from-eco-dark via-eco to-eco-light;
+  .revo-card {
+    @apply relative overflow-hidden rounded-xl border bg-card p-6 shadow-lg transition-all hover:shadow-xl;
   }
   
-  .tech-gradient {
-    @apply bg-gradient-to-r from-tech-dark via-tech to-tech-light;
+  .revo-gradient {
+    @apply bg-gradient-to-r from-primary-700 via-primary-600 to-primary-500;
   }
   
-  .map-container {
-    @apply rounded-xl shadow-lg overflow-hidden;
+  .revo-glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl;
   }
   
-  .dashboard-card {
-    @apply bg-white dark:bg-gray-800 rounded-xl shadow-md p-card-padding transition-all hover:shadow-lg animate-fade-in;
+  .dashboard-stat {
+    @apply flex flex-col gap-2 p-4 rounded-lg border bg-card shadow-sm transition-all hover:shadow-md;
   }
 
-  .eco-score {
-    @apply text-xl font-bold;
+  .stat-value {
+    @apply text-2xl font-bold text-primary-600 dark:text-primary-400;
   }
-  
-  .eco-score-high {
-    @apply text-energy-low;
+
+  .stat-label {
+    @apply text-sm text-muted-foreground;
   }
-  
-  .eco-score-medium {
-    @apply text-energy-medium;
+
+  .nav-link {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-primary-100 dark:hover:bg-primary-900;
   }
-  
-  .eco-score-low {
-    @apply text-energy-high;
+
+  .active-nav-link {
+    @apply bg-primary text-primary-foreground;
   }
 }
 
-/* Map-specific styles */
-.mapboxgl-ctrl-attrib-inner {
-  @apply text-xs text-gray-500;
-}
-
-.mapboxgl-ctrl-logo {
-  @apply opacity-75;
-}
-
-/* Leaflet map styles - fallback if we use leaflet */
-.leaflet-container {
-  @apply h-full w-full;
-}
-
-/* App-wide custom scrollbar */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   @apply w-2;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 dark:bg-gray-800 rounded-full;
+  @apply bg-secondary rounded-full;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-eco bg-opacity-70 rounded-full hover:bg-opacity-100 transition-all;
+  @apply bg-primary/60 rounded-full hover:bg-primary transition-colors;
 }
 
-/* Mobile optimization */
+/* Mobile optimizations */
 @media (max-width: 640px) {
   .container {
     @apply px-4;
   }
   
-  .dashboard-card {
+  .revo-card {
     @apply p-4;
   }
 }

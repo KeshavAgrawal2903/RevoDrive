@@ -19,81 +19,56 @@ export default {
     },
     extend: {
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))'
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+          100: "#E0F2FF",
+          200: "#BAE3FF",
+          300: "#7CC4FA",
+          400: "#47A3F3",
+          500: "#2186EB",
+          600: "#0967D2",
+          700: "#0552B5",
+          800: "#03449E",
+          900: "#01337D",
+        },
+        revo: {
+          DEFAULT: "#2186EB",
+          dark: "#03449E",
+          light: "#BAE3FF",
+          accent: "#FF6B6B",
+          success: "#10B981",
+          warning: "#F59E0B",
+          error: "#EF4444",
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))'
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))'
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))'
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
-          success: {
-            DEFAULT: '#10B981',
-            hover: '#059669'
-          },
-          warning: {
-            DEFAULT: '#F59E0B',
-            hover: '#D97706'
-          },
-          info: {
-            DEFAULT: '#3B82F6',
-            hover: '#2563EB'
-          }
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))'
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
         },
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))'
-        },
-        sidebar: {
-          DEFAULT: 'hsl(var(--sidebar-background))',
-          foreground: 'hsl(var(--sidebar-foreground))',
-          primary: 'hsl(var(--sidebar-primary))',
-          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-          accent: 'hsl(var(--sidebar-accent))',
-          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-          border: 'hsl(var(--sidebar-border))',
-          ring: 'hsl(var(--sidebar-ring))'
-        },
-        // Eco-route specific colors
-        eco: {
-          light: '#88c488',
-          DEFAULT: '#2e7d32',
-          dark: '#1a5e1a',
-        },
-        tech: {
-          light: '#64b5f6',
-          DEFAULT: '#3498db',
-          dark: '#1976d2',
-        },
-        energy: {
-          low: '#4caf50',
-          medium: '#ffc107',
-          high: '#f44336',
-        },
-        terrain: {
-          flat: '#a5d6a7',
-          hilly: '#fff59d',
-          steep: '#ffab91',
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
         },
       },
       borderRadius: {
@@ -156,6 +131,14 @@ export default {
           '0%': { transform: 'scale(0.95)', opacity: '0' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+        "slide-in-bottom": {
+          "0%": { transform: "translateY(20px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.8" },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -163,11 +146,15 @@ export default {
         'pulse-green': 'pulse-green 2s infinite',
         'float': 'float 3s ease-in-out infinite',
         'fade-in': 'fade-in 0.3s ease-out',
-        'pulse-soft': 'pulse 3s ease-in-out infinite',
         'slide-up': 'slideUp 0.3s ease-out',
         'fade-in': 'fadeIn 0.2s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
-      }
+        "slide-in-bottom": "slide-in-bottom 0.3s ease-out",
+        "pulse-soft": "pulse-soft 2s infinite",
+      },
+      backdropFilter: {
+        'glass': 'blur(16px) saturate(180%)',
+      },
     }
   },
   plugins: [require("tailwindcss-animate")],
