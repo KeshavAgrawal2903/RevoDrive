@@ -45,6 +45,21 @@ export default {
           success: "#10B981",
           warning: "#F59E0B",
           error: "#EF4444",
+          gradient: {
+            from: "#2186EB",
+            via: "#0967D2",
+            to: "#03449E",
+          }
+        },
+        energy: {
+          low: "#10B981",
+          medium: "#F59E0B",
+          high: "#EF4444",
+        },
+        tech: {
+          light: "#7DD3FC",
+          DEFAULT: "#0EA5E9",
+          dark: "#0369A1",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
