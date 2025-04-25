@@ -32,7 +32,8 @@ import {
   RefreshCw,
   Shield,
   Layers,
-  Gauge
+  Gauge,
+  Clock
 } from 'lucide-react';
 import { RouteOption, VehicleData, WeatherData } from '@/hooks/useMapData';
 import { useToast } from '@/hooks/use-toast';
