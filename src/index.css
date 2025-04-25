@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -128,7 +127,7 @@
   }
   
   .gradient-text {
-    @apply bg-gradient-to-r bg-clip-text text-transparent;
+    @apply bg-gradient-to-r bg-clip-text text-transparent font-semibold;
   }
   
   .gradient-separator {

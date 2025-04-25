@@ -15,7 +15,7 @@ interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPr
 const Progress = React.forwardRef<
   React.ElementRef<typeof ProgressPrimitive.Root>,
   ProgressProps
->(({ className, value, indicatorClassName, showValue = false, glowEffect = false, ...props }, ref) => (
+>(({ className, value = 0, indicatorClassName, showValue = false, glowEffect = false, ...props }, ref) => (
   <div className="relative">
     {showValue && (
       <span className="absolute -top-5 right-0 text-xs font-medium">

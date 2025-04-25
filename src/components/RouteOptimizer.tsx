@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,7 +98,6 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     clearResults: clearEndResults
   } = useLocationSearch();
 
-  // Get user's current location on mount
   useEffect(() => {
     if (useCurrentLocation && !currentLocation) {
       navigator.geolocation.getCurrentPosition(
@@ -139,7 +137,6 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     }
   }, [useCurrentLocation, onAddLocation, toast, currentLocation]);
 
-  // Update start input when useCurrentLocation changes
   useEffect(() => {
     if (useCurrentLocation && currentLocation) {
       setSelectedStart(currentLocation);
@@ -199,7 +196,6 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
       return;
     }
     
-    // Simulate real-time route finding
     setRefreshing(true);
     
     if (onAddLocation && selectedStart) {
@@ -220,7 +216,6 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
       });
     }
     
-    // Simulate API delay
     setTimeout(() => {
       setRefreshing(false);
     }, 2000);
@@ -250,7 +245,6 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
     onSelectRoute(route);
   };
 
-  // Navigate function for route options
   const handleNavigate = (route: RouteOption) => {
     onSelectRoute(route);
     toast({
@@ -284,7 +278,6 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-5 relative">
-            {/* Animated decorative element */}
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-revo/20 to-tech-light/10 rounded-full blur-3xl animate-pulse-soft"></div>
             <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-gradient-to-br from-energy-low/20 to-energy-medium/10 rounded-full blur-3xl animate-pulse-soft"></div>
             
@@ -511,7 +504,7 @@ const RouteOptimizer: React.FC<RouteOptimizerProps> = ({
               className="w-full relative overflow-hidden group transition-all duration-300"
               disabled={isLoading || refreshing || !selectedEnd || (useCurrentLocation ? !currentLocation : !selectedStart)}
             >
-              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-energy-low via-revo to-energy-medium opacity-80 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-energy-medium via-revo to-tech opacity-80 group-hover:opacity-100 transition-opacity"></div>
               <span className="relative flex items-center justify-center gap-2 text-white font-medium">
                 {isLoading || refreshing ? (
                   <>
