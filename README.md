@@ -1,7 +1,29 @@
 
-# EV Route Optimizer
+# RevoDrive - Smart EV Route Optimization Platform
 
-## Project Setup
+RevoDrive is an intelligent electric vehicle (EV) route planning platform that optimizes journeys by considering charging stations, battery capacity, and real-time environmental factors.
+
+## 🚀 Features
+
+- **Smart Route Planning**: AI-powered route optimization considering charging stops
+- **Real-time Updates**: Live tracking of charging station availability
+- **Energy Prediction**: Advanced algorithms to estimate battery consumption
+- **Interactive Maps**: Detailed visualization of routes and charging stations
+- **Charging Station Analytics**: Comprehensive data about charging locations
+- **User Dashboard**: Personalized insights and route history
+- **Weather Integration**: Route adjustments based on weather conditions
+- **Favorites**: Save frequently used routes and charging stations
+
+## 🛠️ Technical Stack
+
+- **Frontend**: React + TypeScript
+- **Styling**: Tailwind CSS + Shadcn UI
+- **Maps**: Mapbox GL JS
+- **State Management**: TanStack Query
+- **Charts**: Recharts
+- **Icons**: Lucide React
+
+## 🏗️ Project Setup
 
 ### Prerequisites
 - Node.js (version 18 or higher)
@@ -11,8 +33,8 @@
 
 1. Clone the repository
 ```sh
-git clone <your-repository-url>
-cd <project-directory>
+git clone <repository-url>
+cd revodrive
 ```
 
 2. Install dependencies
@@ -21,48 +43,61 @@ npm install
 ```
 
 3. Environment Configuration
-   - Create a `.env` file in the project root
-   - Add your Mapbox API key:
-```
+Create a `.env` file in the project root:
+```env
 VITE_MAPBOX_API_KEY=your_mapbox_public_token_here
 ```
 
-   🔑 To get a Mapbox token:
-   - Visit https://mapbox.com/
-   - Create an account
-   - Go to Account > Access Tokens
-   - Create a new public token
+To obtain a Mapbox token:
+- Visit [Mapbox](https://mapbox.com/)
+- Create an account
+- Navigate to Account > Access Tokens
+- Create a new public token
 
-4. Start the development server
+4. Start Development Server
 ```sh
 npm run dev
 ```
 
-5. Enable Location Services
-   - When prompted by your browser, allow location access
-   - Ensure your device's location services are enabled
-   - For Chrome: Settings > Privacy and Security > Site Settings > Location
-   - For Firefox: Settings > Privacy & Security > Permissions > Location
-   - For Safari: Preferences > Websites > Location
+## 📱 Usage Requirements
 
-## Troubleshooting
+### Location Services
+- Enable browser location access
+- Grant location permissions when prompted
+- Ensure device location services are active
 
-### Location Detection Issues
-- If your current location isn't detected:
-  - Check that you've allowed location access in your browser
-  - Try using a different browser
-  - For local development, some browsers restrict geolocation on non-HTTPS connections
-  - You may need to set up a local HTTPS server or use a tool like ngrok
-  - As a workaround, you can manually set your starting location in the app
+Browser-specific settings:
+- **Chrome**: Settings > Privacy and Security > Site Settings > Location
+- **Firefox**: Settings > Privacy & Security > Permissions > Location
+- **Safari**: Preferences > Websites > Location
 
-### API Key Issues
-- Ensure your Mapbox token is a PUBLIC token
-- Verify the token has the necessary geocoding permissions
-- If you're experiencing location detection problems, double-check your token's scope
+### Troubleshooting
 
-## Project Technologies
-- Vite
-- React
-- TypeScript
-- Tailwind CSS
-- Mapbox GL JS
+#### Location Detection
+- Verify browser location permissions
+- Check device location services
+- Try a different browser if issues persist
+- For local development:
+  - Some browsers restrict geolocation on non-HTTPS connections
+  - Consider using a local HTTPS server
+  - Manual location input is available as fallback
+
+#### API Key Issues
+- Confirm Mapbox token is public
+- Verify token has geocoding permissions
+- Check token scope and restrictions
+
+## 🤝 Contributing
+
+We welcome contributions! Please feel free to submit pull requests.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🌟 Acknowledgments
+
+- Thanks to the Mapbox team for their excellent mapping solutions
+- Shadcn UI for the beautiful component library
+- The React and TypeScript communities
+
